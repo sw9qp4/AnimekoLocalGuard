@@ -1,0 +1,16 @@
+Add the work log to the audit package
+
+The reviewer asked for the work log alongside the task list and the plan, so it is now the
+eighth document. It records only what was actually executed, with the observed result of
+each step, ordered by phase.
+
+Two parts are worth the reviewer's attention specifically:
+
+  - Five separate "implemented but never wired in" defects were found during development.
+    None of them was caught by a unit test; every one surfaced through dead-code auditing
+    or an end-to-end pipeline test. That is the main reason this project does not treat
+    passing tests as evidence that a feature is connected.
+  - A section listing this project's own operational mistakes, including writing a
+    PowerShell script with non-ASCII content that could not be parsed at all, and clearing
+    the Gradle cache far more aggressively than necessary, which broke the build
+    environment for a while. Both are recorded with the corrective rule that followed.

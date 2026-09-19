@@ -25,6 +25,7 @@ const ORDER = [
     'C-DESIGN.md',
     'E-ROADMAP.md',
     'F-BUILD-AND-VERIFICATION.md',
+    'G-WORKLOG.md',
 ];
 
 function main() {
