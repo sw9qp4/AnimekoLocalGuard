@@ -1,7 +1,7 @@
 {
   "_readme": "AnimekoLocalGuard 状态文件。status 词汇严格区分：DESIGNED(仅设计)/IMPLEMENTED(代码已写)/STATIC_EVIDENCE(静态读取代码或文件得到)/UNIT_TESTED(单元测试通过)/UNIT_TESTED_STANDALONE(独立构建器下单测通过，非上游Gradle)/BUILT(构建成功)/DEVICE_VERIFIED(真机验证)/MODEL_EVALUATED(模型已评估)/BLOCKED(阻塞)/UNKNOWN(未知)。不要把多项合并为一个『完成』。",
   "schemaVersion": 2,
-  "updatedAt": "2026-09-19T20:40:00+08:00",
+  "updatedAt": "2026-09-19T23:10:00+08:00",
   "project": "AnimekoLocalGuard",
   "currentStage": "G0_DONE_BUILT__G1_PURE_LOGIC_UNIT_TESTED_ON_UPSTREAM_GRADLE__UI_SWITCH_IMPLEMENTED__DEVICE_PENDING",
   "stageStatus": {
@@ -441,6 +441,36 @@
       "PowerShell 不支持 <<< here-string 重定向；提交信息改为写入文件后用 git commit -F。"
     ],
     "notClaimed": "不声称该仓库可复现构建（本轮未做字节级复现性验证），也不声称它已可用于实际观看（见 knownLimitations）。"
+  },
+  "externalReviewPackage": {
+    "status": "DONE_AND_PUSHED",
+    "generatedAt": "2026-09-19T23:10:00+08:00",
+    "purpose": "用户要求整理全部工作记录、已完成/待处理任务、未来方案，交给外部审阅者（GPT）找漏洞与优化点",
+    "location": "docs/audit/（已发布到仓库，提交 9f5598d）",
+    "documents": {
+      "00-INDEX-给审阅者.md": "阅读顺序 + 7 个希望外部回答的问题",
+      "D-GAPS-AND-RISKS.md": "16 项已知缺陷/未验证项/风险（最重要）",
+      "A-FACTS.md": "全部可核对数字 + 复核命令",
+      "B-TASKS.md": "对照总任务说明的逐条完成度",
+      "C-DESIGN.md": "架构与设计取舍",
+      "E-ROADMAP.md": "后续路线、依赖、止损条件",
+      "F-BUILD-AND-VERIFICATION.md": "实际执行过什么、没执行过什么",
+      "G-WORKLOG.md": "按阶段的工作日志 + 本项目自身的操作失误"
+    },
+    "localArtifacts": {
+      "combinedSingleFile": "artifacts/audit-package/AnimekoLocalGuard-审阅材料-单一文件.md（1440 行 / 79,315 字节，可整份粘贴）",
+      "zip": "artifacts/AnimekoLocalGuard-审阅材料.zip（137,741 字节，sha256 8e16db4a…；内含 8 份审阅文档 + PROGRESS.md + NEXT.md + STATE.json + ANIMEKOLOCALGUARD.md）",
+      "note": "artifacts/ 已 gitignore，因此 zip 只在本地；审阅文档本身在仓库里，可直接给 URL"
+    },
+    "tool": "tools/pack_audit.js（重新打包：node tools/pack_audit.js 后 Compress-Archive）",
+    "topQuestionsAskedOfReviewer": [
+      "资料缺失时 fail-open 还是 fail-closed（D-2）",
+      "阈值校准方式：绝对分数 vs 相对排序+每集配额（D-3）",
+      "10M–50M 参数模型做该任务是否现实，是否应先做规则基线（D-8）",
+      "Android 项目是否应要求字节级可复现（D-4）",
+      "是否应优先接入上游未使用的 DandanplayEpisode.shift（D-12）",
+      "以台词引用作为唯一证据锚是否足够（C.4）"
+    ]
   },
   "artifacts": {
     "apkBaseline": {

@@ -17,7 +17,103 @@ SHA-256 `4a3aa137…2cbae`，已完整读取）
 
 ---
 
-## 〇之十二、本轮（2026-09-19 第十九轮）进展：短片片单实测收敛 + 字幕样例进测试
+## 〇之十三、本轮（2026-09-19 第二十轮）进展：外部审阅材料 + 发布到 GitHub
+
+### 1. 发布到公开仓库（用户要求，用于 DanDanPlay 申请的可验证地址）
+
+仓库：**https://github.com/sw9qp4/AnimekoLocalGuard**（public，HEAD `9f5598d`）
+
+方式：**单个 import 提交**，不推送上游 4788 个提交的历史（含 156 MB 预编译 VLC/FFmpeg 二进制）。
+上游出处写在提交信息与 `ANIMEKOLOCALGUARD.md` 里。
+
+发布前做了三件事：
+
+1. 新增 `tools/secret_scan.js`，对**"git 会发布的那批文件"**扫描禁用路径与凭据特征；
+2. 收紧 `.gitignore`（排除 `.tools/`、`artifacts/`、`docs/evidence/` 等）；
+3. 发布后逐路径核对 GitHub，确认 `local.properties`、密钥库、`.tools/`、`artifacts/`、
+   `docs/evidence/` **不可访问**，源码可访问。
+
+**过程中发现两个会静默出错的地方：**
+
+- **PowerShell 5.1 会破坏 git 输出里的 UTF-8 文件名**，git 把非 ASCII 路径转义成 `\nnn`，
+  导致 44 个文件被误判为"不存在"。正解：`git ls-files -z -c -o --exclude-standard`
+  重定向到文件，由 Node 读字节。
+- **上游 `app/shared/app-lang/.gitignore` 明确排除了 `values-zh-r*/strings*.xml`**，
+  因此 4 个改了 `localguard` 文案的语言文件**默认不会被发布**——必须 `git add -f`，
+  否则翻译会静默丢失。
+
+### 2. 外部审阅材料（新增 `docs/audit/`，8 份）
+
+| 文件 | 内容 |
+|---|---|
+| `00-INDEX-给审阅者.md` | 阅读顺序 + 7 个希望外部回答的问题 |
+| `D-GAPS-AND-RISKS.md` | **16 项已知缺陷/未验证项/风险（最重要）** |
+| `A-FACTS.md` | 全部可核对数字 + 复核命令 |
+| `B-TASKS.md` | 对照总任务说明的逐条完成度 |
+| `C-DESIGN.md` | 架构与设计取舍（含放弃了什么） |
+| `E-ROADMAP.md` | 后续路线、依赖关系、止损条件 |
+| `F-BUILD-AND-VERIFICATION.md` | 实际执行过什么、没执行过什么 |
+| `G-WORKLOG.md` | 按阶段的工作日志 + 本项目自身的操作失误 |
+
+打包产物（本地，`artifacts/` 已 gitignore）：
+- 单一可粘贴文件：`artifacts/audit-package/AnimekoLocalGuard-审阅材料-单一文件.md`（1440 行 / 79,315 字节）
+- zip：`artifacts/AnimekoLocalGuard-审阅材料.zip`（137,741 字节，sha256 `8e16db4a…`）
+
+打包工具：`tools/pack_audit.js`。
+
+### 3. 本轮查出的两个新缺陷
+
+**缺陷一（P0，已修未验证）：release 变体的包名与官方 Animeko 冲突。**
+
+debug 变体有 `.localguard` 后缀，但 **release 变体没有设置后缀**，
+因此 release 构建的包名是上游的 **`me.him188.ani`**——与官方**完全相同**。
+
+```
+node tools/apk_inspect.js .../android-default-arm64-v8a-release.apk
+  → "package": "me.him188.ani"      ← 冲突
+```
+
+由于两者签名不同，Android 会拒绝安装（不会破坏数据，**这是运气不是设计**）；
+但若用户先卸载官方 Animeko，release 版就能装上，而用户会以为装的是官方版。
+
+已修改 `app/android/build.gradle.kts` 读取 `ani.android.release.applicationIdSuffix`。
+**但修复后未重新构建验证**（构建环境在此期间被破坏，release APK 已删除）。
+
+**缺陷二（P0，设计取舍）：资料缺失/集数未知时 fail-open。**
+
+`DanmakuGuardSession.shouldDisplay` 在 `episodeNumber == null || pack == null` 时
+**返回 true（放行）**。这与项目反复强调的"宁可保守，不可提前解锁"方向相反。
+缓解是状态行如实显示降级项，但 fail-open 的失败模式是**静默失效**，依赖用户去读状态行。
+已列入审阅重点，请求外部判断。
+
+### 4. 本轮的操作失误（已记入下一节）
+
+| 失误 | 后果 |
+|---|---|
+| 用中文写 `.ps1` | 脚本根本无法解析（PowerShell 5.1 按 GBK 读无 BOM 文件）→ 改为纯 ASCII |
+| 清 Gradle 缓存清过头 | 破坏构建环境（`Unresolved reference 'plugins'`）→ 已恢复，写下正确清理顺序 |
+| `aapt2 dump strings` 用来找文案 | 永远搜不到（那是**文件名**池，不是资源值池）→ 改写 `resources.arsc` 解码器 |
+| 一度把 `.scan-filelist.bin` / `.msg*.txt` 提交进仓库 | 无敏感内容，但属脏文件 → 已删除并加入 `.gitignore` |
+
+### 5. 本轮验证结果
+
+| 验证 | 结果 |
+|---|---|
+| 清缓存后完整配置（`gradle :help`） | **BUILD SUCCESSFUL in 18m 32s** |
+| `:danmaku:localguard:testAndroidHostTest` | **BUILD SUCCESSFUL，292/292 通过** |
+| 发布前密钥扫描 | 3860 个文件，**0 问题** |
+| 发布后远端核对 | `git ls-remote` 与本地 HEAD 一致（`9f5598d`） |
+
+### 6. 新增文件
+
+`docs/audit/`（8 份）、`docs/G1_DEVICE_CHECKLIST.md`、`tools/device_verify.ps1`、
+`tools/secret_scan.js`、`tools/git_import.js`、`tools/apk_inspect.js`、
+`tools/apk_find_strings.js`、`tools/test_result_summary.js`、`tools/make_release_keystore.ps1`、
+`tools/pack_audit.js`、`ANIMEKOLOCALGUARD.md`。
+
+---
+
+## 〇之十二、上一轮（2026-09-19 第十九轮）进展：短片片单实测收敛 + 字幕样例进测试
 
 ### 1. 按你的要求把片单收敛到"短片"，并逐部实测弹幕
 
