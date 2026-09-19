@@ -74,8 +74,16 @@ class GuardStatusTest {
         assertTrue(status.displayLine().contains("对齐未验证"))
     }
 
+    /**
+     * 没有分析能力时不再是 RULE_PROTOTYPE。
+     *
+     * 早期实现把"语义未就绪"一律映射为 RULE_PROTOTYPE（"固定规则／时间线测试"），
+     * 但那条路径上其实**没有任何规则在跑**：拿不到语义结论的弹幕一律不显示。
+     * 继续报 RULE_PROTOTYPE 会让用户以为自己受到规则保护，属于第 12 节点名禁止的
+     * "还显示保护中"。
+     */
     @Test
-    fun `no semantics reports rule prototype`() {
+    fun `missing analysis capability is not reported as rule prototype`() {
         val status = deriveGuardStatus(
             config = GuardUserConfig(enabled = true, tier = GuardTier.BALANCED),
             counters = counters,
@@ -83,9 +91,35 @@ class GuardStatusTest {
             knowledgeLoaded = true,
             alignmentVerified = true,
             semanticsReady = false,
+            analysisCapabilityMissing = true,
+        )
+        assertEquals(GuardFeatureState.MODEL_FAILURE, status.state)
+        assertTrue(status.displayLine().contains("无分析能力"), status.displayLine())
+        assertFalse(
+            status.displayLine().contains("固定规则"),
+            "不得声称固定规则在运行：实际为 ${status.displayLine()}",
+        )
+    }
+
+    /**
+     * RULE_PROTOTYPE 仍然可达：分析能力存在、只是当前没有分钟级资料或对齐未验证。
+     *
+     * 这条存在的意义是防止上面那条修正把整个状态压成单一分支——
+     * 一个再也到不了的状态就是死代码。
+     */
+    @Test
+    fun `rule prototype still reachable when capability exists but timeline is not verified`() {
+        val status = deriveGuardStatus(
+            config = GuardUserConfig(enabled = true, tier = GuardTier.BALANCED),
+            counters = counters,
+            episodeKnown = true,
+            knowledgeLoaded = true,
+            alignmentVerified = true,
+            semanticsReady = false,
+            analysisCapabilityMissing = false,
+            modelFailed = false,
         )
         assertEquals(GuardFeatureState.RULE_PROTOTYPE, status.state)
-        assertTrue(status.displayLine().contains("未接入模型"))
     }
 
     @Test

@@ -345,8 +345,10 @@ class GuardSessionCacheTest {
         val counting = CountingProvider(null)
         val s = session(cache = cache, provider = counting.provider())
 
-        assertTrue(s.shouldDisplay(request(text = "无法判定")))
-        assertTrue(s.shouldDisplay(request(text = "无法判定", id = "d2")))
+        // 未审核 → 不显示，但**仍然每次都要问提供者**：
+        // "拿不到语义"是临时状态，一旦缓存下来，这条弹幕就永远拿不到语义结论了。
+        assertFalse(s.shouldDisplay(request(text = "无法判定")))
+        assertFalse(s.shouldDisplay(request(text = "无法判定", id = "d2")))
         assertEquals(
             2, counting.calls,
             "“拿不到语义”是临时状态，不得缓存成永久结论",
@@ -429,12 +431,19 @@ class GuardSessionCacheTest {
 
     @Test
     fun `analysis failure is distinct from unknown semantics`() = runTest {
-        // 语义不确定（提供者返回 null）= 能力降级 → 按档位保守处理（原型阶段为旁路）
+        // 提供者返回 null = 这条弹幕未经审核。
+        // 总任务说明第 12 节要求未审核内容不显示；它与"分析失败"的区别在于**原因与上报口径**：
+        // 这里没有可用的分析能力（能力缺失），而下面的情况是分析器跑通了但报告失败。
+        // 两种都必须不显示，但不能混为一谈，否则界面无法告诉用户该去装模型还是该去查故障。
         val noSemantics = session(cache = null, provider = CountingProvider(null).provider())
-        assertTrue(noSemantics.shouldDisplay(request(text = "任意弹幕")))
-        assertEquals(0L, noSemantics.counters.value.failed, "“拿不到语义”不是分析失败")
+        assertFalse(noSemantics.shouldDisplay(request(text = "任意弹幕")), "未审核内容不得显示")
+        assertEquals(1L, noSemantics.counters.value.failed, "拿不到语义按未审核计入失败")
+        assertTrue(
+            noSemantics.captureStatus().analysisCapabilityMissing,
+            "从未产出结论 ⇒ 应上报为能力缺失，而不是模型故障",
+        )
 
-        // 分析失败 = 系统故障 → 不显示
+        // 分析失败 = 系统故障 → 同样不显示，但上报为故障而非能力缺失
         val failed = session(
             cache = null,
             provider = CountingProvider(
@@ -443,6 +452,10 @@ class GuardSessionCacheTest {
         )
         assertFalse(failed.shouldDisplay(request(text = "任意弹幕")))
         assertEquals(1L, failed.counters.value.failed)
+        assertFalse(
+            failed.captureStatus().analysisCapabilityMissing,
+            "分析器产出过结论 ⇒ 不是能力缺失，而是故障",
+        )
     }
 
     @Test

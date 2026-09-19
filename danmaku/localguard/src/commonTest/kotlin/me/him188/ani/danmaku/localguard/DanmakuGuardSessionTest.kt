@@ -146,14 +146,183 @@ class DanmakuGuardSessionTest {
         assertEquals(1L, s.counters.value.bypassedNoKnowledge)
     }
 
+    /**
+     * 集数变成未知时，**不得沿用上一集**。
+     *
+     * 这是一个真实的放行缺陷：调用方在集数未知时此前什么都不做，于是会话里保留着上一集的
+     * 集数。界面已经知道新内容无法映射，过滤器却仍按上一集判断——而旧进度可能让未来事实
+     * 被当成"已经揭晓"，从而放行。这比"没有过滤"更危险，因为它看起来像是在工作。
+     */
     @Test
-    fun noSemanticsIsTreatedAsUnknownNotSafe() = runTest {
+    fun unknownEpisodeClearsThePreviousEpisodeInsteadOfReusingIt() = runTest {
+        val (s, _) = session(episode = 3.0) // 第 3 集：F_ENDING 已揭晓
+        s.semanticsProvider = { visibleSemantics }
+        // 前置条件：第 3 集里指向 F_ENDING 的弹幕确实被放行
+        assertTrue(s.shouldDisplay(request(id = "before")), "前置条件：第 3 集应已解锁 F_ENDING")
+        assertTrue(s.captureStatus().episodeKnown)
+
+        // 切到无法映射的内容
+        s.markEpisodeUnknown()
+
+        assertFalse(s.captureStatus().episodeKnown, "必须清除集数，不得沿用第 3 集")
+        // 集序未知 → 能力降级：不凭猜测屏蔽，但也绝不按上一集解锁
+        assertTrue(s.shouldDisplay(request(id = "after")), "集序未知时按降级放行，而不是按旧集判断")
+        assertEquals(0L, s.counters.value.blockedSpoiler, "不得再以第 3 集的结论作判断")
+    }
+
+    /** 重复声明"集序未知"不应反复递增生成号（否则会白白作废在途结果）。 */
+    @Test
+    fun repeatedUnknownEpisodeIsIdempotent() = runTest {
+        val (s, _) = session(episode = 2.0)
+        s.markEpisodeUnknown()
+        val g = s.generation
+        s.markEpisodeUnknown()
+        assertEquals(g, s.generation, "已经是未知时不得再次递增生成号")
+    }
+
+    /**
+     * 剧情包异步加载完成后，**不需要换集**也必须对当前会话生效。
+     *
+     * 加载剧情包通常发生在集数已知之后。若只在切集时绑定，会话就永远拿着构造时的 null 包，
+     * 于是"文件加载成功"不等于"过滤真的用上了它"。
+     */
+    @Test
+    fun knowledgeLoadedLaterIsBoundWithoutChangingEpisode() = runTest {
+        // 先以"无资料"启动第 2 集
+        val (s, _) = session(episode = 2.0, withKnowledge = false)
+        s.semanticsProvider = { visibleSemantics }
+        assertFalse(s.captureStatus().knowledgeLoaded, "前置条件：此时尚无资料")
+        assertTrue(s.shouldDisplay(request(id = "no-knowledge")), "无资料属于降级，放行")
+        assertEquals(1L, s.counters.value.bypassedNoKnowledge)
+
+        // 资料到达，集数不变
+        s.updateKnowledge(Fixtures.pack(), Fixtures.aligned)
+
+        assertTrue(s.captureStatus().knowledgeLoaded, "资料必须已绑定到当前会话")
+        assertTrue(s.captureStatus().episodeKnown, "集数不变")
+        // 计数不因资料到达而重置：本集尚未结束，统计应连续
+        assertEquals(1L, s.counters.value.bypassedNoKnowledge, "不得重置计数")
+    }
+
+    /** 资料到达后判定必须真的按资料执行，而不是仍然"无资料放行"。 */
+    @Test
+    fun decisionActuallyUsesKnowledgeThatArrivesLate() = runTest {
+        val (s, _) = session(episode = 1.0, withKnowledge = false)
+        // 指向第 3 集才揭晓的事实：有资料时应被屏蔽
+        s.semanticsProvider = {
+            DanmakuSemantics(
+                scores = mapOf(GuardCategory.SPOILER_EXPLICIT to 0.95),
+                factIds = setOf("F_ENDING"),
+            )
+        }
+        assertTrue(s.shouldDisplay(request(id = "before-load")), "无资料时放行（降级）")
+
+        s.updateKnowledge(Fixtures.pack(), Fixtures.aligned)
+
+        assertFalse(
+            s.shouldDisplay(request(id = "after-load")),
+            "资料到达后，指向未来集事实的弹幕必须被屏蔽——否则等于资料没生效",
+        )
+    }
+
+    /** 资料未变化时重复刷新不得清掉事实关系缓存之外的东西，也不得重置计数。 */
+    @Test
+    fun repeatedKnowledgeUpdateIsIdempotent() = runTest {
+        val (s, _) = session(episode = 2.0)
+        s.semanticsProvider = { visibleSemantics }
+        s.shouldDisplay(request())
+        val before = s.counters.value.total
+
+        s.updateKnowledge(Fixtures.pack(), Fixtures.aligned)
+        s.updateKnowledge(Fixtures.pack(), Fixtures.aligned)
+
+        assertEquals(before, s.counters.value.total, "重复刷新不得影响计数")
+    }
+
+    /**
+     * 拿不到语义结论 = 这条弹幕未经审核。
+     *
+     * 总任务说明第 12 节：「AI 已开启但系统故障时，保留仍有效的已审核项，
+     * **未审核内容不显示**，并明确提示；不得静默恢复原样弹幕还显示保护中。」
+     *
+     * 因此这里必须**不显示**。早期实现在这一分支放行，理由是"原型阶段无语义信息"，
+     * 但那恰好就是第 12 节点名禁止的"静默恢复原样弹幕"：用户打开了开关，
+     * 界面却没有如实告诉他未审核内容仍在显示。
+     *
+     * 与"资料缺失/集序未知"的区别在于：后者是第 13 节的**能力降级**，
+     * 没有资料并不等于这条弹幕安全；而这里是**分析能力没有给出结论**。
+     */
+    @Test
+    fun noSemanticsMeansUnreviewedContentIsNotShown() = runTest {
         val (s, _) = session()
         // 不设置 semanticsProvider：原型阶段恒为 null
-        assertTrue(s.shouldDisplay(request()), "原型阶段无语义信息时按旁路处理并上报")
+        assertFalse(s.shouldDisplay(request()), "未审核内容不得显示")
         val c = s.counters.value
-        assertEquals(1L, c.bypassedNoKnowledge)
+        assertEquals(1L, c.failed, "应计入失败，而不是资料缺失旁路")
+        assertEquals(0L, c.bypassedNoKnowledge, "这不是资料缺失")
         assertEquals(0L, c.evaluated, "未参与判定的条目不得计入 evaluated")
+        assertEquals(0L, c.visible)
+    }
+
+    /**
+     * 有资料、但完全没有可用分析能力时，状态必须说明"未审核内容不显示"。
+     *
+     * 这条覆盖的是原型阶段的实际情形：开关能打开，剧情包也在，但没有模型，
+     * 于是每条弹幕都拿不到语义结论。用户必须能从状态行知道
+     * "看不到弹幕是功能在起作用"，而不是以为播放器坏了。
+     */
+    @Test
+    fun missingAnalysisCapabilityIsReportedInTheStatusLine() = runTest {
+        val (s, _) = session() // 有 pack、有集数，但没有 semanticsProvider
+        val status = s.captureStatus()
+        assertTrue(status.analysisCapabilityMissing, "从未产出过结论 ⇒ 分析能力缺失")
+        assertEquals(
+            GuardFeatureState.MODEL_FAILURE,
+            status.state,
+            "不得谎报为 RULE_PROTOTYPE：那样用户会以为过滤在工作",
+        )
+        val line = status.displayLine()
+        assertTrue(
+            line.contains("无分析能力"),
+            "状态行必须说明原因，实际为：$line",
+        )
+        assertTrue(
+            line.contains("未审核弹幕不显示"),
+            "状态行必须让用户知道看不到弹幕是功能在起作用，实际为：$line",
+        )
+    }
+
+    /**
+     * 资料缺失时状态仍报"资料缺失"，而不是"模型故障"。
+     *
+     * 两者都是"没有结论"，但用户能做的事不同：前者要装剧情包，后者要看分析器。
+     * 报错对象搞错会让人往错误方向排查。
+     */
+    @Test
+    fun missingKnowledgeIsReportedAsKnowledgeNotAsModelFailure() = runTest {
+        val (s, _) = session(withKnowledge = false)
+        val status = s.captureStatus()
+        assertEquals(GuardFeatureState.KNOWLEDGE_MISSING, status.state)
+        assertTrue(status.displayLine().contains("资料缺失"), status.displayLine())
+    }
+
+    /**
+     * 分析能力一旦成功产出过结论，就不再算"能力缺失"。
+     *
+     * 区分"还没接"与"接了但这次失败"是刻意的：总任务说明第 12 节要求把
+     * 模型故障与语义不确定分开，而两者在代码里都表现为"拿到 null"。
+     */
+    @Test
+    fun capabilityIsNotMissingOnceASemanticsWasProduced() = runTest {
+        val (s, _) = session()
+        assertTrue(s.captureStatus().analysisCapabilityMissing, "初始没有能力")
+
+        s.semanticsProvider = { visibleSemantics }
+        s.shouldDisplay(request())
+        assertFalse(
+            s.captureStatus().analysisCapabilityMissing,
+            "产出过一次结论后不应再报能力缺失",
+        )
     }
 
     // ---------- 判定与计数 ----------
@@ -213,6 +382,9 @@ class DanmakuGuardSessionTest {
         // 已揭晓事实 → visible，与上面的 blocked 构成两个不同分类
         s.semanticsProvider = { visibleSemantics }
         repeat(3) { i -> s.shouldDisplay(request(id = "n$i")) }
+
+        // 提供者返回 null → 未经审核 → 不显示，计入 failed
+        // （总任务说明第 12 节：未审核内容不显示，且排队/失败不能从分母里消失）
         s.semanticsProvider = { null }
         repeat(2) { i -> s.shouldDisplay(request(id = "k$i")) }
 
@@ -221,13 +393,21 @@ class DanmakuGuardSessionTest {
         repeat(4) { i -> s.shouldDisplay(request(id = "o$i")) }
 
         val c = s.counters.value
-        // 每个被处理的条目必须恰好落在一个分类里
+        // 每个被处理的条目必须恰好落在一个分类里。
+        // 关闭之后应先恢复放行——这是总任务说明第 13 节的要求，
+        // 也是"用户能关掉它"这条交付的判据。
         assertEquals(10L, c.total, "计数分类必须互斥且完备")
         assertEquals(1L, c.blockedSpoiler)
         assertEquals(3L, c.visible)
-        assertEquals(2L, c.bypassedNoKnowledge)
-        assertEquals(4L, c.bypassedOff)
-        assertEquals(c.total, c.evaluated + c.bypassedOff + c.bypassedNoKnowledge, "分类之和必须等于总数")
+        assertEquals(2L, c.failed, "未审核内容计入 failed，而不是资料缺失旁路")
+        assertEquals(4L, c.bypassedOff, "关闭后的条目必须计入 bypassedOff")
+        assertEquals(0L, c.bypassedNoKnowledge, "资料齐备时不得计入资料缺失")
+        assertEquals(
+            c.total,
+            c.visible + c.blockedSpoiler + c.blockedContent + c.failed + c.bypassedOff +
+                c.bypassedNoKnowledge + c.deferredTimeout,
+            "所有分类之和必须等于总数",
+        )
     }
 
     // ---------- 切集与生成号 ----------
@@ -371,12 +551,20 @@ class DanmakuGuardSessionTest {
         assertFalse(status.displayLine().contains("已启用"))
     }
 
+    /**
+     * 有资料但没有分析能力时，状态报告的是"能力缺失"，**不是** RULE_PROTOTYPE。
+     *
+     * 这一条是刻意改过的：早期实现把它报成 RULE_PROTOTYPE（"固定规则／时间线测试"），
+     * 而实际上没有任何规则在跑——判定路径拿不到语义，未审核内容一律不显示。
+     * 若继续报 RULE_PROTOTYPE，用户会以为自己受到"固定规则"的保护。
+     */
     @Test
-    fun statusReportsRulePrototypeWhenKnowledgePresentButNoSemantics() = runTest {
+    fun statusReportsCapabilityMissingWhenKnowledgePresentButNoSemantics() = runTest {
         val (s, _) = session(enabled = true, withKnowledge = true, episode = 2.0)
         val status = s.captureStatus()
-        assertEquals(GuardFeatureState.RULE_PROTOTYPE, status.state)
+        assertEquals(GuardFeatureState.MODEL_FAILURE, status.state)
         assertFalse(status.semanticsReady, "默认不得声称已接入模型")
+        assertTrue(status.analysisCapabilityMissing, "从未产出结论 ⇒ 能力缺失")
         assertTrue(status.knowledgeLoaded)
         assertTrue(status.alignmentVerified)
         assertTrue(status.episodeKnown)
@@ -385,9 +573,18 @@ class DanmakuGuardSessionTest {
     @Test
     fun statusReportsTimelineVerifiedOnlyWhenSemanticsReady() = runTest {
         val (s, _) = session(enabled = true, withKnowledge = true, episode = 2.0)
-        // 安装真实提供者即视为"已接入模型"——能力状态由客观事实推导，不靠额外的标志位
         s.semanticsProvider = { spoilerSemantics }
-        assertTrue(s.semanticsReady)
+
+        // 只"装了一个提供者"不构成分析能力：还没有任何一条弹幕被真正判过。
+        // 此时判定路径拿不到结论（提供者尚未被调用），因此不能声称已接入模型——
+        // 否则会出现"界面说已接入、实际全部不显示"的最糟组合。
+        assertFalse(s.semanticsReady, "尚未产出任何结论时不得声称已接入模型")
+        assertEquals(GuardFeatureState.MODEL_FAILURE, s.captureStatus().state)
+        assertTrue(s.captureStatus().analysisProviderInstalled, "诊断应记录提供者已装入")
+
+        // 真正产出一次结论之后，能力才算接入。
+        s.shouldDisplay(request())
+        assertTrue(s.semanticsReady, "产出结论后应报告已接入")
         assertEquals(GuardFeatureState.TIMELINE_VERIFIED, s.captureStatus().state)
     }
 
@@ -451,13 +648,13 @@ class DanmakuGuardSessionTest {
         s.semanticsProvider = { spoilerSemantics }
         s.shouldDisplay(request()) // 被屏蔽
         s.semanticsProvider = { null }
-        s.shouldDisplay(request(id = "d2")) // 无语义 → 降级放行
+        s.shouldDisplay(request(id = "d2")) // 无语义 → 未经审核 → 不显示
         val status = s.captureStatus()
         assertEquals(1L, status.counters.blockedSpoiler)
-        assertEquals(1L, status.counters.bypassedNoKnowledge)
+        assertEquals(1L, status.counters.failed, "未审核内容必须计入失败而不是消失")
         assertEquals(
             status.counters.total,
-            status.counters.blockedSpoiler + status.counters.bypassedNoKnowledge,
+            status.counters.blockedSpoiler + status.counters.failed,
         )
     }
 

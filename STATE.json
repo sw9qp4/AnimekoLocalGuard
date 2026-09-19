@@ -472,6 +472,47 @@
       "以台词引用作为唯一证据锚是否足够（C.4）"
     ]
   },
+  "externalReviewRound": {
+    "status": "RESPONDED_AND_FIVE_DEFECTS_FIXED",
+    "reviewedRevision": "9f5598d（审阅者明确以其为准，而非随时变化的 main）",
+    "responseDoc": "docs/audit/H-REVIEW-RESPONSE.md",
+    "evidence": "docs/evidence/post_review_fix_and_rebuild.txt",
+    "reviewerVerdict": "项目方向可以继续，但下一轮不应只重建 APK；应先修复会导致错误放行的逻辑，再构建一个真正能验证拦截的版本",
+    "defectsFixedThisRound": [
+      {"id": "H-1", "what": "未核对的事实在跨集后被自动解锁", "verdict": "确认成立（缺陷）", "fix": "核对检查提到任何分支之前，成为解锁前置条件", "note": "副作用：未核对事实在整个覆盖范围内持续受保护——刻意选择保守方向", "tests": ["crossEpisodeUnlockStillRequiresTrustedVerification", "unverifiedFactIsNeverUnlockedEvenInLaterEpisodes", "verifiedFactStillUnlocksInLaterEpisodes"]},
+      {"id": "H-2", "what": "多事实判定结果依赖事实列表顺序", "verdict": "确认成立（缺陷）", "fix": "逐项独立判断后合并：任一确定未解锁即屏蔽；不确定项取最严", "note": "审阅者反例已逐字复算确认（均衡档 0.70 分、顺序 A/B 得出相反结论）", "tests": ["uncertainFactCannotCancelADefinitelyLockedFact", "decisionIsIndependentOfFactOrderForEveryPermutation", "addingABlockingFactNeverTurnsBlockedIntoVisible"]},
+      {"id": "H-3", "what": "集数变成未知时沿用上一集", "verdict": "确认成立（缺陷，本轮最严重）", "fix": "新增 DanmakuGuardSession.markEpisodeUnknown()，明确清除集数并递增生成号", "note": "原注释自称不会沿用上一集，但会话根本没被通知——注释描述的是意图不是行为", "tests": ["unknownEpisodeClearsThePreviousEpisodeInsteadOfReusingIt", "repeatedUnknownEpisodeIsIdempotent"]},
+      {"id": "H-4", "what": "剧情包异步加载完成后没有绑定到会话", "verdict": "确认成立（缺陷）", "fix": "新增 DanmakuGuardSession.updateKnowledge()；不切集、不重置计数、清事实关系缓存", "note": "加载完成时集数通常未变，startEpisode 不会再触发，会话永久持有构造时的 null 包", "tests": ["knowledgeLoadedLaterIsBoundWithoutChangingEpisode", "decisionActuallyUsesKnowledgeThatArrivesLate", "repeatedKnowledgeUpdateIsIdempotent"]},
+      {"id": "H-5", "what": "无审核能力时静默放行", "verdict": "原先判断描述不准确；审阅者的决定已采纳", "fix": "语义解析返回 null 时不再放行，计入 failed；保留资料缺失/集序未知的降级路径；状态行区分“无分析能力”与“分析故障”；semanticsReady 改为基于证据", "note": "总任务说明第 12 节（故障→未审核内容不显示）与第 13 节（能力降级→仍可运行通用分类）分工明确，我原先混为一谈", "tests": ["noSemanticsMeansUnreviewedContentIsNotShown", "missingAnalysisCapabilityIsReportedInTheStatusLine", "capabilityIsNotMissingOnceASemanticsWasProduced"]}
+    ],
+    "defectsAcceptedNotYetFixed": [
+      {"id": "H-6", "what": "弹幕列表不因配置/进度变化而重新审核", "verified": "确认成立：allDanmakuListFlow 的 combine 输入里没有配置流，也没有播放位置流，但函数体读取了这两者", "whyNotFixed": "需要先决定重新计算的触发条件与代价，并配合性能测量", "priority": "next"},
+      {"id": "H-7", "what": "对齐只按作品绑定，且残差未进入运行时误差边界", "verified": "部分成立：路径确为 story/<workId>.alignment.json（按作品不按集）；生成器是否写入非零误差待核实", "whyNotFixed": "需扩展 TimeAlignment 数据结构（有效区段/区段误差/未覆盖区段/视频版本绑定）", "priority": "next"},
+      {"id": "H-8", "what": "缓存与调度四项（无事实即跨作品复用、失败进长期缓存、缺 knowledgeVersion、提供者仍是同步接口）", "verified": "四项均成立，逐条核对了源码", "whyNotFixed": "属接口变更，应在实现规则基线时一并处理", "priority": "beforeModel"}
+    ],
+    "myOwnOverstatementsCorrected": [
+      {"id": "H-9", "what": "用“只删了 5 行”论证上游语义不变", "verdict": "无效论证，已更正 A-FACTS.md", "correct": "上游既有逻辑没有被删除；但新增分支会在开关打开时改变行为，关闭时与上游一致。应由差异审查+回归测试支撑"},
+      {"id": "H-10", "what": "把“缺字幕”说成根本阻塞", "verdict": "表述过强，已更正 A-FACTS.md", "correct": "缺字幕只阻塞“分钟级事实判断”；包名/安装核验、规则拦截、通用分类都不需要它"},
+      {"id": "H-11", "what": "把“自有源抽样低”推广成“实际使用中弹幕少”", "verdict": "超出证据，已更正 A-FACTS.md", "correct": "准确说法是“自有源覆盖率低，聚合源未测量”"}
+    ],
+    "reviewerAgreements": [
+      "当前定位：已有带测试的过滤框架和静态接入代码，尚未形成可使用、经过真实播放验证的过滤功能",
+      "三档策略、时间线数据结构、缓存接口与测试值得保留，不需要推倒重做",
+      "用“G1 约 85%”这类百分比作为主要进度指标不合适；应看一条真实弹幕能否在正确时间、正确档位下受控",
+      "阈值应用验证集校准，不用“每集最多屏蔽 N 条”；排序只用于决定优先送分析/优先人工复核",
+      "10M–50M 模型的任务应设计为“弹幕+上下文+候选事实 → 是否透露 + 陈述类型 + 可信度”，事实作为输入而非每部番新增输出类别",
+      "规则基线的作用是验证接线、提供对照、发现数据问题；不能凭未测量的“可能覆盖 80%”就停止模型阶段",
+      "不应让用户为了防剧透先亲自看完未来剧情资料（程序性意见，已写入路线）",
+      "shift 字段可用于改善弹幕同步，但不能自动升级为“已验证的剧情对齐来源”",
+      "以台词引用作为唯一证据锚不够；引用帮助定位，不能独立证明“观众此时已知”",
+      "两条止损条件不成立：剧透比例门槛未考虑损失；误杀标准不能三档共用"
+    ],
+    "roundVerification": {
+      "standaloneTests": {"total": 308, "pass": 308, "fail": 0, "classes": 19, "crossCheckedBy": "tools/test_inventory.js 扫描 @Test 注解，同为 308", "note": "292 → 308：新增 22 例、删除 1 例"},
+      "appSharedTests": "BUILD SUCCESSFUL 30m51s（首次编译 EpisodeViewModel 的 markEpisodeUnknown/updateKnowledge/refreshLocalGuardKnowledge 改动）",
+      "releaseBuild": {"result": "BUILD SUCCESSFUL 13m01s", "bytes": 37012169, "sha256": "8d072274ab3ce32d4829c82d811f70967e0231924809ea25dd837e09bd375877", "package": "me.him188.ani.localguard", "packageFixVerified": true}
+    }
+  },
   "artifacts": {
     "apkBaseline": {
       "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-universal-arm64.apk",

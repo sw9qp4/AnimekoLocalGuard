@@ -170,8 +170,17 @@ class DanmakuGuardSession(
      * 这样设计的原因：手动置位的开关很容易被忘记，结果就是界面永远显示
      * "未接入模型"（即使模型已在跑）或永远显示正常（即使模型已坏）。
      */
+    /**
+     * 语义层是否已接入。
+     *
+     * 判据是**客观证据**：至少成功产出过一次语义结论，并且最近一次没有报告分析失败。
+     *
+     * 为什么不用"是否赋过提供者"：赋一个恒返回 null 的提供者并不构成分析能力。
+     * 若按赋值判断，会出现最糟的组合——判定路径因为拿不到语义而**屏蔽**弹幕，
+     * 界面却显示"已接入模型"并声称一切正常。
+     */
     val semanticsReady: Boolean
-        get() = hasSemanticsProvider && !lastSemanticsAnalysisFailed
+        get() = hasEverProducedSemantics && !lastSemanticsAnalysisFailed
 
     /**
      * 调用方报告的**不可恢复**故障（模型文件损坏、加载失败等）。
@@ -185,6 +194,17 @@ class DanmakuGuardSession(
     /** 是否安装过真实语义提供者（区别于默认的"恒返回 null"）。 */
     @Volatile
     private var hasSemanticsProvider: Boolean = false
+
+    /**
+     * 是否**曾经**成功产出过一次语义结论。
+     *
+     * 存在的理由：`semanticsProvider` 默认返回 null，而"没有安装分析能力"与
+     * "分析器存在但这次推理失败"受总任务说明不同条款约束（第 12 节 vs 第 13 节），
+     * 但在代码里都表现为"拿到 null"。只有区分开，才能对前者按能力缺失上报、
+     * 对后者按故障上报，而不是笼统地静默放行。
+     */
+    @Volatile
+    private var hasEverProducedSemantics: Boolean = false
 
     /**
      * 最近一次语义解析是否表明"分析失败"。
@@ -213,6 +233,10 @@ class DanmakuGuardSession(
             alignmentVerified = currentAlignment.isVerified,
             semanticsReady = semanticsReady,
             modelFailed = modelLoadFailed || lastSemanticsAnalysisFailed,
+            // 没有可用分析能力 ≠ 模型故障：前者是"还没接"，后者是"接了但坏了"。
+            // 界面文案的区别很重要，否则原型阶段会被显示成故障，接入后真故障又被当成没接。
+            analysisCapabilityMissing = !hasUsableAnalysisCapability,
+            analysisProviderInstalled = hasSemanticsProvider,
         )
     }
 
@@ -237,6 +261,58 @@ class DanmakuGuardSession(
         // 只清事实关系层而不清通用分类层：后者与剧情无关，跨集复用是第 11 节允许的，
         // 一起丢掉只是白白重算。
         semanticsCache?.evictFactRelations()
+    }
+
+    /**
+     * 声明"当前这一集无法映射到知识库集序"（例如无法解析的集序、未显式声明的特别篇）。
+     *
+     * 存在的理由是一个真实的放行缺陷：调用方此前在集数未知时**什么都不做**，
+     * 于是会话里保留着**上一集**的集数。结果是界面已经知道新内容无法映射，
+     * 过滤器却仍按上一集判断——而旧进度可能让未来事实被当成"已经揭晓"，从而放行。
+     * 这比"没有过滤"更危险，因为它看起来像是在工作。
+     *
+     * 清除集数会让判定进入"集序未知"分支：不屏蔽、但如实上报降级，
+     * 且**绝不沿用上一集**。生成号同样递增，使在途的旧结论失效。
+     */
+    fun markEpisodeUnknown() {
+        val alreadyUnknown = synchronized(lock) {
+            if (episodeNumberInternal == null) {
+                true
+            } else {
+                generationInternal += 1
+                episodeNumberInternal = null
+                false
+            }
+        }
+        if (alreadyUnknown) return
+        countersInternal.value = GuardCounters()
+        semanticsCache?.evictFactRelations()
+    }
+
+    /**
+     * 在不切集的前提下更新资料（知识包 / 对齐）。
+     *
+     * 为什么需要它：剧情包是异步加载的。加载完成时集数往往**没有变化**，
+     * 若只提供"切集时更新"，会话就会一直拿着构造时的 null 知识包，
+     * 于是"文件确实加载成功"却不等于"过滤真的用上了这个文件"。
+     *
+     * 不重置计数、也不递增生成号：本集尚未结束，计数应连续；
+     * 面板上"资料缺失"消失本身就是资料已生效的证据。
+     * 但**必须**清掉事实关系缓存——它绑定的是资料版本，资料变了旧结论即失效。
+     */
+    fun updateKnowledge(
+        knowledge: StoryKnowledgePack?,
+        alignment: TimeAlignment,
+    ) {
+        val changed = synchronized(lock) {
+            val same = knowledgePack === knowledge && currentAlignment == alignment
+            if (!same) {
+                knowledgePack = knowledge
+                currentAlignment = alignment
+            }
+            !same
+        }
+        if (changed) semanticsCache?.evictFactRelations()
     }
 
     /** 校验某个生成号是否仍是当前会话。 */
@@ -275,8 +351,18 @@ class DanmakuGuardSession(
         //    最终显示决定不入此缓存：它依赖当前进度、档位与映射，必须每次重新计算。
         val semantics = resolveSemantics(request, pack)
         if (semantics == null) {
-            bump { it.copy(bypassedNoKnowledge = it.bypassedNoKnowledge + 1) }
-            return true
+            // 拿不到语义结论 = 这条弹幕**未经审核**。
+            //
+            // 总任务说明第 12 节：「AI 已开启但系统故障时，保留仍有效的已审核项，
+            // 未审核内容不显示，并明确提示；不得静默恢复原样弹幕还显示保护中。」
+            // 因此这里**不放行**。
+            //
+            // 注意与上一分支的区别，两者不可混为一谈：
+            // - 上一分支（资料缺失/集序未知）属于第 13 节的**能力降级**，此时确实无法做
+            //   时间判断，但"没有资料"不等于"这条弹幕安全"，所以那里的放行是有据可依的降级；
+            // - 本分支是"分析能力没有给出结论"，放行未审核内容正是第 12 节点名禁止的行为。
+            bump { it.copy(failed = it.failed + 1) }
+            return false
         }
 
         val engine = DanmakuGuardEngine(pack, alignment)
@@ -436,6 +522,13 @@ class DanmakuGuardSession(
      */
     private fun observeSemantics(semantics: DanmakuSemantics?) {
         lastSemanticsAnalysisFailed = semantics?.analysisFailed == true
+        // 记下"分析能力至少成功产出过一次结论"。
+        // 只有这样才能在之后区分两种"拿到 null"：
+        // - 从未成功过 → 很可能根本没装分析能力 → 按能力缺失上报；
+        // - 成功过又失败 → 系统故障 → 按第 12 节上报并在界面明示。
+        // 断言式地忽略 analysisFailed：分析器**跑通了但判定为失败**也算"产出过结论"，
+        // 它的失败会由 lastSemanticsAnalysisFailed 单独表达。
+        if (semantics != null) hasEverProducedSemantics = true
     }
 
     private var semanticsProviderInternal: (GuardRequest) -> DanmakuSemantics? = { null }
@@ -452,5 +545,22 @@ class DanmakuGuardSession(
         set(value) {
             semanticsProviderInternal = value
             hasSemanticsProvider = true
+            // 换用新的提供者意味着模型/分析器版本变了，旧的"曾成功过"结论不再代表当前能力。
+            hasEverProducedSemantics = false
         }
+
+    /**
+     * 当前是否**具备可用的分析能力**。
+     *
+     * 判据是"是否成功产出过语义结论"，而**不是**"是否被赋过提供者"。
+     * 后者会误判：赋一个恒返回 null 的提供者，与根本不赋提供者，在能力上完全等价，
+     * 但前者会让界面显示成"分析故障"。那会把用户引向错误方向——
+     * 他会去查故障，而实际问题是从未接入分析能力。
+     *
+     * 界面用它区分两种"没有结论"的情形，因为总任务说明对二者的要求不同：
+     * - `false`：没有可用的分析能力（原型阶段，或提供者从未产出过任何结论）。
+     * - `true`：分析能力在，但这次没给出结论 → 属于故障路径（第 12 节）。
+     */
+    val hasUsableAnalysisCapability: Boolean
+        get() = hasEverProducedSemantics
 }

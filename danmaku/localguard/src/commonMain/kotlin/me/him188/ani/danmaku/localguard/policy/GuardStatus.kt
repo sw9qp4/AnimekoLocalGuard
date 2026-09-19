@@ -29,6 +29,23 @@ data class GuardStatus(
     val alignmentVerified: Boolean,
     /** 是否已接入语义分析（真实模型）。原型阶段为 false。 */
     val semanticsReady: Boolean,
+    /**
+     * 是否**没有可用的分析能力**（尚未接入，或提供者从未产出过任何结论）。
+     *
+     * 与 [semanticsReady] 的区别：`semanticsReady == false` 的含义是"当前不具备分析能力"，
+     * 而本字段进一步区分它属于"还没接"（能力缺失）还是"接了但出故障"（模型故障）。
+     * 两者的界面文案与用户预期完全不同，不能合并。
+     */
+    val analysisCapabilityMissing: Boolean = false,
+    /**
+     * 是否**被赋过**语义提供者。
+     *
+     * 只用于诊断，不参与状态判定：一个恒返回 null 的提供者不构成分析能力，
+     * 因此它出现而 [analysisCapabilityMissing] 仍为 true 是**正常**的——
+     * 那说明"装了提供者但从未产出结论"，正是需要排查的情形。
+     * 这个字段的价值就在于把这种情况与"根本没装"区分开。
+     */
+    val analysisProviderInstalled: Boolean = false,
     val counters: GuardCounters,
 ) {
     /**
@@ -56,7 +73,13 @@ data class GuardStatus(
             if (!episodeKnown) add("集序未知")
             if (!knowledgeLoaded) add("资料缺失")
             if (!alignmentVerified) add("对齐未验证")
-            if (!semanticsReady) add("未接入模型")
+            if (!semanticsReady) {
+                // 关键区分：没有分析能力时不能只说"未接入模型"就完事——
+                // 此时未审核内容不会被显示，用户必须知道"看不到弹幕是功能在起作用"，
+                // 而不是以为播放器坏了。
+                if (analysisCapabilityMissing) add("无分析能力，未审核弹幕不显示")
+                else add("分析故障，未审核弹幕不显示")
+            }
         }
         if (degradations.isNotEmpty()) {
             append(" · 降级：")
@@ -75,6 +98,8 @@ data class GuardStatus(
         "knowledgeLoaded=$knowledgeLoaded",
         "alignmentVerified=$alignmentVerified",
         "semanticsReady=$semanticsReady",
+        "analysisCapabilityMissing=$analysisCapabilityMissing",
+        "analysisProviderInstalled=$analysisProviderInstalled",
         "evaluated=${counters.evaluated}",
         "visible=${counters.visible}",
         "blockedContent=${counters.blockedContent}",
@@ -105,6 +130,8 @@ data class GuardStatus(
             knowledgeLoaded = false,
             alignmentVerified = false,
             semanticsReady = false,
+            analysisCapabilityMissing = true,
+            analysisProviderInstalled = false,
             counters = counters,
         )
     }
@@ -125,11 +152,18 @@ fun deriveGuardStatus(
     alignmentVerified: Boolean,
     semanticsReady: Boolean,
     modelFailed: Boolean = false,
+    analysisCapabilityMissing: Boolean = false,
+    analysisProviderInstalled: Boolean = false,
 ): GuardStatus {
     val state = when {
         !config.enabled -> GuardFeatureState.OFF
-        modelFailed -> GuardFeatureState.MODEL_FAILURE
+        // 资料缺失优先于能力缺失：没有剧情包时，即使有分析能力也做不了时间判断，
+        // 这才是用户首先需要知道的事。
         !knowledgeLoaded -> GuardFeatureState.KNOWLEDGE_MISSING
+        // 有资料但没有可用分析能力：判定路径无法给出结论，未审核内容不会被显示。
+        // 若在此谎报成 RULE_PROTOTYPE，用户会以为过滤正在工作。
+        analysisCapabilityMissing -> GuardFeatureState.MODEL_FAILURE
+        modelFailed -> GuardFeatureState.MODEL_FAILURE
         !alignmentVerified -> GuardFeatureState.ALIGNMENT_UNVERIFIED
         !semanticsReady -> GuardFeatureState.RULE_PROTOTYPE
         else -> GuardFeatureState.TIMELINE_VERIFIED
@@ -142,6 +176,8 @@ fun deriveGuardStatus(
         knowledgeLoaded = knowledgeLoaded,
         alignmentVerified = alignmentVerified,
         semanticsReady = semanticsReady,
+        analysisCapabilityMissing = analysisCapabilityMissing,
+        analysisProviderInstalled = analysisProviderInstalled,
         counters = counters,
     )
 }

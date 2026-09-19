@@ -742,8 +742,9 @@ class EpisodeViewModel(
      * Loads knowledge for this subject once, off the main thread.
      *
      * One-shot: the subject does not change within one playback page, so there is nothing to
-     * re-load on episode switches. The result is applied to the session on the next `startEpisode`
-     * call, which happens before any danmaku are judged.
+     * re-load on episode switches. The result is pushed to the session by
+     * [refreshLocalGuardKnowledge] as soon as it arrives, and is also applied on the next
+     * `startEpisode` call.
      *
      * Called from the view model's existing `init` block rather than a separate one — a view model
      * may only have a single `init` block.
@@ -784,6 +785,10 @@ class EpisodeViewModel(
         }
         // Null alignment stays Unaligned: never treat "not configured" as zero offset.
         localGuardAlignment = localGuardKnowledgeSource.loadAlignment(workId) ?: TimeAlignment.Unaligned
+        // Bind what we just loaded to the live session. Loading usually finishes AFTER the episode
+        // number is already known, so relying on the next startEpisode would leave the session
+        // running with the null pack it was constructed with.
+        refreshLocalGuardKnowledge()
     }
 
     /**
@@ -874,18 +879,46 @@ class EpisodeViewModel(
     /**
      * Synchronises the current episode to the guard session.
      *
-     * A null episode is ignored: an unknown episode is a capability degradation, and the session
-     * treats "episode unknown" as "do not guess" rather than reusing the previous episode.
+     * Two distinct cases, and conflating them caused a real leak:
      *
-     * `startEpisode` is only called when the episode number actually CHANGES, because it bumps
-     * the generation and resets counters; calling it repeatedly would pollute the statistics.
+     *  - `episodeNumber == null` means the episode could not be mapped to a knowledge-pack episode
+     *    number (unparsable sort, or a special without an explicitly declared position). The session
+     *    must be told to **forget** the previous episode rather than keeping it: continuing with the
+     *    old episode number would compare the new content against the old episode's progress, which
+     *    can mark a future fact as already revealed and therefore allow it through. That is worse
+     *    than not filtering at all, because it looks like it is working.
+     *
+     *  - `episodeNumber != null` starts a new episode. This resets counters and bumps the session
+     *    generation, so it is deliberately only done when the number actually changes.
      */
     private fun syncLocalGuardEpisode(episodeNumber: Double?) {
-        if (episodeNumber == null) return
+        if (episodeNumber == null) {
+            localGuardSyncedEpisodeNumber = null
+            localGuardSession.markEpisodeUnknown()
+            return
+        }
         if (localGuardSyncedEpisodeNumber == episodeNumber) return
         localGuardSyncedEpisodeNumber = episodeNumber
         localGuardSession.startEpisode(
             episodeNumber = episodeNumber,
+            knowledge = localGuardKnowledge,
+            alignment = localGuardAlignment,
+        )
+    }
+
+    /**
+     * Pushes the currently loaded knowledge/alignment into the session without changing the episode.
+     *
+     * The story pack loads asynchronously, and it usually finishes **after** the episode number is
+     * already known. Since [syncLocalGuardEpisode] only fires when the episode number changes, a pack
+     * that arrives later would otherwise never reach the session — "the file loaded" would not mean
+     * "the filter is using the file". This closes that gap.
+     *
+     * Safe to call repeatedly: the session compares identity/equality and only evicts the
+     * fact-relation cache when something actually changed.
+     */
+    private fun refreshLocalGuardKnowledge() {
+        localGuardSession.updateKnowledge(
             knowledge = localGuardKnowledge,
             alignment = localGuardAlignment,
         )
