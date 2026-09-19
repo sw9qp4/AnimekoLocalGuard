@@ -411,6 +411,37 @@
       "buildWiring": "无需改构建脚本：app/android/build.gradle.kts 已在上游提供参数化的 release signingConfig（signing_release_storeFileFromRoot 等四个属性），本项目的 getProperty 会回落到 local.properties"
     }
   },
+  "publication": {
+    "status": "DONE_AND_VERIFIED",
+    "repository": "https://github.com/sw9qp4/AnimekoLocalGuard",
+    "visibility": "public",
+    "defaultBranch": "main",
+    "headCommit": "0de136f891ca",
+    "pushedAt": "2026-09-19T21:40:00+08:00",
+    "why": "用户要求为 DanDanPlay 申请表单提供「可验证的项目地址」，因此需要公开仓库",
+    "method": "单个 import 提交，不是推送上游 4788 个提交的历史（含 156 MB 预编译 VLC/FFmpeg 二进制）。上游出处写在提交信息与 ANIMEKOLOCALGUARD.md 里。",
+    "importRepoPath": "D:\\模型\\AnimekoLocalGuard-import（工作树之外的副本，因此本地检出与上游的关系未被改动）",
+    "filesPublished": 3840,
+    "tools": ["tools/secret_scan.js", "tools/git_import.js"],
+    "prePublishVerification": {
+      "secretScan": "PASS —— 对「git 会发布的那一批文件」扫描，无禁用路径、无凭据特征",
+      "secretsConfirmedAbsentOnGitHub": ["local.properties", "keystore/animekolocalguard-release.jks", ".gh-token.tmp", ".tools/", "artifacts/", "docs/evidence/"],
+      "sourcesConfirmedPresentOnGitHub": ["ANIMEKOLOCALGUARD.md", "PROGRESS.md", "STATE.json", "LICENSE.txt", "danmaku/localguard/build.gradle.kts", "app/shared/app-lang/src/androidMain/res/values-zh-rCN/strings.xml"]
+    },
+    "gitignoreHardenedBeforePublish": [
+      "/keystore/ 与 *.jks / *.keystore —— 提交签名材料会让任何人都能签出貌似来自本项目的包",
+      "/.tools/ /artifacts/ /out/ *.apk *.aab *.apks —— 本机工具链与构建产物，体积大且可能把构建期烤进去的凭据带出去",
+      "/docs/evidence/ —— 弹幕 API 与官方 APK 的原始抓取痕迹，结论已写进 docs/；其中 danmaku_coverage.json 与 short_series_shortlist.json 刻意保留可发布（只含标题与计数）",
+      "/build-last.txt /probe.txt /gradle-probe/ /build-localguard/ /.scan-filelist.txt"
+    ],
+    "pitfallsHit": [
+      "PowerShell 5.1 捕获 git 输出时会按 GBK 解码 UTF-8，非 ASCII 文件名被 git 转义成 \\nnn，导致 44 个文件被误判为「不存在」。正解：git ls-files -z -c -o --exclude-standard 重定向到文件，由 Node 读字节。",
+      "上游 app/shared/app-lang/.gitignore 明确排除了 values-zh-r*/strings*.xml，因此 4 个改了 localguard 文案的语言文件默认不会发布 —— 必须 git add -f，否则翻译会静默丢失。",
+      "Node 在沙箱下无法 spawn 带管道的 git（EPERM），因此 git_import.js 只做「复制文件」这件事（Node 才能正确处理非 ASCII 路径），git 命令由 shell 执行。",
+      "PowerShell 不支持 <<< here-string 重定向；提交信息改为写入文件后用 git commit -F。"
+    ],
+    "notClaimed": "不声称该仓库可复现构建（本轮未做字节级复现性验证），也不声称它已可用于实际观看（见 knownLimitations）。"
+  },
   "artifacts": {
     "apkBaseline": {
       "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-universal-arm64.apk",

@@ -25,6 +25,9 @@ Podfile.lock
 /gradle-probe/
 /build-localguard/
 /.scan-filelist.txt
+/.scan-filelist.bin
+/.msg2.txt
+/.commit-msg.txt
 
 # AnimekoLocalGuard: the local toolchain (JDK 21, Android SDK, Gradle 9.3.1, a multi-GB Gradle
 # cache) and build outputs. Never published: machine-specific, enormous, and not source.
