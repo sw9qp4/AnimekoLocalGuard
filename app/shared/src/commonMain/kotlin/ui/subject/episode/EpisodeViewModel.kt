@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -850,20 +851,47 @@ class EpisodeViewModel(
     }
 
     /**
+     * Bumped whenever the guard's knowledge or alignment actually changes.
+     *
+     * Exists because the asynchronous load produces no other signal that the UI observes: the
+     * config, the counters and the episode number all stay the same while the pack goes from
+     * "absent" to "loaded". Combining this into the status flow is what makes the capability line
+     * follow reality instead of staying on whatever it showed when the episode started.
+     */
+    private val localGuardKnowledgeVersion = MutableStateFlow(0)
+
+    /**
+     * Current guard configuration, as a hot flow the decision paths can combine with.
+     *
+     * Kept as a shared StateFlow rather than relying on the session's internal mirror: the danmaku
+     * list is recomputed on a coroutine, and it needs a value that is already up to date when the
+     * recomputation runs. It also serves the status flow, so the config has a single subscriber
+     * chain instead of one per consumer.
+     */
+    val localGuardConfig: StateFlow<GuardUserConfig> = localGuardConfigSource.config
+        .stateIn(backgroundScope, SharingStarted.Eagerly, localGuardConfigSource.current)
+
+    /**
      * Everything the settings UI needs to describe the guard: on/off, tier, capability state and
      * counters.
      *
-     * Built by combining the three independent signals the session reads, rather than by pushing
+     * Built by combining the independent signals the session reads, rather than by pushing
      * snapshots from the playback path. A pushed refresh would be easy to forget and would leave
      * the UI showing a stale state; deriving the snapshot from these flows cannot drift.
+     *
+     * [localGuardKnowledgeVersion] is one of those signals and is easy to miss: without it, the
+     * pack arriving later would change the session's real capability while the displayed status
+     * still said "资料缺失". A status line that lies about whether the data is loaded is worse
+     * than no status line, because the user would go looking for a problem that is already fixed.
      *
      * The snapshot contains no danmaku text and no story facts, so it is safe to display.
      */
     val localGuardStatusFlow: StateFlow<GuardStatus> = combine(
-        localGuardConfigSource.config,
+        localGuardConfig,
         localGuardSession.counters,
         localGuardEpisodeNumberFlow,
-    ) { _, _, _ -> localGuardSession.captureStatus() }
+        localGuardKnowledgeVersion,
+    ) { _, _, _, _ -> localGuardSession.captureStatus() }
         .stateIn(backgroundScope, SharingStarted.Eagerly, localGuardSession.captureStatus())
 
     /** Master switch. Off by default; turning it on cannot make the guard claim more than it can do. */
@@ -922,6 +950,9 @@ class EpisodeViewModel(
             knowledge = localGuardKnowledge,
             alignment = localGuardAlignment,
         )
+        // Signal the UI: without this the status line keeps showing the capability it computed
+        // before the load finished.
+        localGuardKnowledgeVersion.update { it + 1 }
     }
 
     /**
@@ -1023,6 +1054,21 @@ class EpisodeViewModel(
     ) // This is lazy. If user puts app into background, queries will abort.
 
     /**
+     * How often the danmaku list re-checks its entries against the current playback position.
+     *
+     * The list's visible set is a step function of the position: an entry can only change from
+     * hidden to shown when playback crosses a fact's reveal time, and back to hidden only when the
+     * viewer seeks before that time. So the list does not need per-frame re-evaluation — it needs
+     * to be re-evaluated whenever the position moves far enough that the answer *could* differ.
+     *
+     * Five seconds is a deliberate trade: the reveal margins a tier applies are 0/15/30 seconds, so
+     * a 5-second granularity can make a newly unlocked entry appear up to 5 seconds late — but it
+     * can never make a still-hidden entry appear early, because the decision always uses the real
+     * current position rather than the sampled one. Being late is the safe direction.
+     */
+    private val localGuardListRecheckIntervalMillis = 5_000L
+
+    /**
      * Danmaku list (`DanmakuListItem`) content source.
      *
      * This is the **second** real text entrance: the list renders every danmaku's original text
@@ -1036,19 +1082,40 @@ class EpisodeViewModel(
      * not reached — a leak. The current playback position is used instead, which is strictly more
      * conservative: the list shows exactly what the overlay is allowed to show right now.
      *
+     * ## Why the trigger set is what it is
+     *
+     * An earlier version combined only the danmaku list and the sender id, while *reading* the
+     * switch and the playback position inside the lambda. Reading a value is not the same as
+     * depending on it: with neither of those as an input, the list was computed once and then
+     * stayed stale. Two concrete consequences:
+     *
+     *  - turning the guard on (or switching to a stricter tier) while the list was open left the
+     *    already-computed list untouched;
+     *  - seeking back to the start left entries that had been unlocked at the end still visible.
+     *
+     * Both the switch/tier and the position therefore have to be *inputs*, not just reads. The
+     * position is sampled (see [localGuardListRecheckIntervalMillis]) so that playback does not
+     * trigger a full re-filter on every frame, while a configuration change propagates on its own
+     * — it must, because the switch can be toggled while playback is paused, in which case no
+     * position sample would ever arrive.
+     *
      * When the guard is off this returns the upstream list unchanged (off = upstream behaviour).
      */
     val allDanmakuListFlow = combine(
         episodeDanmakuLoader.allDanmakuFlow,
         danmakuRepository.selfId,
-    ) { danmakuList, selfId ->
-        if (!localGuardConfigSource.current.enabled) {
+        combine(
+            player.currentPositionMillis.sampleWithInitial(localGuardListRecheckIntervalMillis),
+            localGuardConfig,
+        ) { _, config -> config },
+    ) { danmakuList, selfId, config ->
+        if (!config.enabled) {
             danmakuList.map {
                 DanmakuPresentation(it, isSelf = selfId == it.senderId)
             }
         } else {
-            // Reading the position here is a cheap StateFlow read on the producing coroutine,
-            // never on the UI thread.
+            // Read the real position, not the sampled one: the sample only decides *when* to
+            // recompute, never *what* the answer is.
             val position = player.currentPositionMillis.value
             danmakuList
                 .filter { localGuardShouldDisplay(it, position) }

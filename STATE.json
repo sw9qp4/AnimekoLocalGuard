@@ -513,6 +513,40 @@
       "releaseBuild": {"result": "BUILD SUCCESSFUL 13m01s", "bytes": 37012169, "sha256": "8d072274ab3ce32d4829c82d811f70967e0231924809ea25dd837e09bd375877", "package": "me.him188.ani.localguard", "packageFixVerified": true}
     }
   },
+  "h6ListRecomputeFix": {
+    "status": "LIST_SIDE_FIXED__OVERLAY_SIDE_NOT_FIXED",
+    "round": "第二十二轮",
+    "defect": "allDanmakuListFlow 的 combine 输入里没有配置流、也没有播放位置流，函数体却读取了这两者。读取一个值不等于依赖它，因此列表算过一次就不再更新。",
+    "listSideFix": {
+      "configBecomesInput": "新增 localGuardConfig: StateFlow<GuardUserConfig> 并入 combine。配置必须有自己的输入——用户可以在暂停时打开开关，那时永远不会有位置采样到达。",
+      "positionBecomesInput": "用上游已有的 sampleWithInitial 以 5 秒粒度采样位置。列表的可见集合是位置的阶跃函数，不需要逐帧重算。",
+      "decisionUsesRealPosition": "采样只决定何时重算，不决定答案：判定始终读 player.currentPositionMillis.value。",
+      "whyFiveSeconds": "各档余量是 0/15/30 秒，因此新解锁的条目最多晚 5 秒出现；但绝不会提前出现。晚是安全方向。",
+      "status": "IMPLEMENTED + BUILT"
+    },
+    "overlaySideNotFixed": {
+      "whatIsCovered": ["正常播放（新事件不断到达）", "拖动进度（上游重发 Repopulate，携带事件自身的 playTimeMillis）"],
+      "whatIsNotCovered": "弹幕已经交给显示层后，用户切换开关或档位：已放行的不追溯隐藏，已拦下的不追溯显示。",
+      "whyNotFixed": "修复需要在上游侧触发一次重新填充（requestRepopulate 之类的路径，本轮未核实具体 API），会在播放中插入一次行为变化。没有设备时无法判断会不会造成画面跳动或闪烁。先记录，不猜着改。",
+      "status": "KNOWN_LIMITATION__NEEDS_DEVICE"
+    },
+    "relatedFixFoundWhileFixingThis": {
+      "what": "localGuardStatusFlow 的输入是配置+计数+集数，三者都不会因资料到达而改变 ⇒ 上一轮修好 H-4 后，状态行仍会继续显示“资料缺失”。",
+      "whyItMatters": "一条谎报资料是否加载的状态行比没有状态行更糟——用户会去排查一个已经解决的问题。",
+      "fix": "新增 localGuardKnowledgeVersion（资料实际变化时递增）并纳入状态流。",
+      "status": "IMPLEMENTED + BUILT"
+    },
+    "compileErrorHit": {
+      "error": "Variable 'localGuardConfig' must be initialized —— localGuardStatusFlow 引用了在文件中更靠后声明的属性",
+      "cause": "Kotlin 属性初始化顺序不允许前向引用",
+      "fix": "把 localGuardConfig / localGuardKnowledgeVersion 的声明前移到 localGuardStatusFlow 之前",
+      "toolAdded": "tools/check_decls.js（检查 import 齐备、两行粘成一行、声明恰好出现一次）"
+    },
+    "verification": {
+      "appSharedTests": "BUILD SUCCESSFUL 7m11s",
+      "note": "列表重算行为本身需要设备与真实弹幕才能验证；本轮只能证明编译与现有测试通过"
+    }
+  },
   "artifacts": {
     "apkBaseline": {
       "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-universal-arm64.apk",
