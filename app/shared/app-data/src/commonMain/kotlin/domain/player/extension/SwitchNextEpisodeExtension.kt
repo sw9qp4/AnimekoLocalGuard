@@ -1,0 +1,90 @@
+/*
+ * Copyright (C) 2024-2026 OpenAni and contributors.
+ *
+ * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
+ * Use of this source code is governed by the GNU AGPLv3 license, which can be found at the following link.
+ *
+ * https://github.com/open-ani/ani/blob/main/LICENSE
+ */
+
+package me.him188.ani.app.domain.player.extension
+
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import me.him188.ani.app.domain.episode.EpisodeFetchSelectPlayState
+import me.him188.ani.app.domain.episode.EpisodeSession
+import me.him188.ani.app.domain.settings.GetVideoScaffoldConfigUseCase
+import me.him188.ani.app.domain.watchtogether.PlaybackAutomationGate
+import me.him188.ani.utils.logging.info
+import me.him188.ani.utils.logging.logger
+import org.koin.core.Koin
+import org.openani.mediamp.MediampPlayer
+import org.openani.mediamp.PlaybackEvent
+
+/**
+ * 自动连播.
+ *
+ * 监听 [MediampPlayer.events] 的 [PlaybackEvent.MediaEnded] 事件, 当播放自然结束且最终位置距离视频结束不足 5 秒时, 切换到下一集.
+ * 下一集由 [getNextEpisode] 提供.
+ */
+class SwitchNextEpisodeExtension(
+    private val context: PlayerExtensionContext,
+    koin: Koin,
+    private val getNextEpisode: suspend (currentEpisodeId: Int) -> Int?,
+) : PlayerExtension("SwitchNextEpisode") {
+    private val getVideoScaffoldConfigUseCase: GetVideoScaffoldConfigUseCase by koin.inject()
+    private val automationGate: PlaybackAutomationGate by koin.inject()
+
+    override fun onStart(episodeSession: EpisodeSession, backgroundTaskScope: ExtensionBackgroundTaskScope) {
+        val mediaLoaded = CompletableDeferred<Unit>()
+        backgroundTaskScope.launch("MediaLoadedListener") {
+            context.subscribeEvents<EpisodeFetchSelectPlayState.MediaLoadedEvent>().collectLatest {
+                if (mediaLoaded.isActive) mediaLoaded.complete(Unit)
+            }
+        }
+
+        backgroundTaskScope.launch("SwitchNextEpisode") {
+            mediaLoaded.await() // 播放器开始播放了再启用自动下一集特性
+            context.sessionFlow.collectLatest { session ->
+                getVideoScaffoldConfigUseCase()
+                    .map { it.autoPlayNext }
+                    .distinctUntilChanged()
+                    .collectLatest inner@{ enabled ->
+                        if (!enabled) return@inner
+
+                        impl(session)
+                    }
+            }
+        }
+    }
+
+    private suspend fun impl(session: EpisodeSession): Nothing {
+        val player = context.player
+        player.events.collect { event ->
+            if (event !is PlaybackEvent.MediaEnded) return@collect
+            val durationMillis = event.durationMillis
+            val closeToEnd = durationMillis != null && durationMillis - event.finalPositionMillis < 5000
+
+            if (closeToEnd) {
+                if (automationGate.suppressed.value) return@collect
+                val nextEpisode = getNextEpisode(session.episodeId)
+                logger.info("播放完毕，切换下一集 $nextEpisode")
+                context.switchEpisode(nextEpisode ?: return@collect)
+            }
+        }
+    }
+
+    class Factory(
+        private val getNextEpisode: suspend (currentEpisodeId: Int) -> Int?,
+    ) : EpisodePlayerExtensionFactory<SwitchNextEpisodeExtension> {
+        override fun create(context: PlayerExtensionContext, koin: Koin): SwitchNextEpisodeExtension {
+            return SwitchNextEpisodeExtension(context, koin, getNextEpisode)
+        }
+    }
+
+    companion object {
+        private val logger = logger<SwitchNextEpisodeExtension>()
+    }
+}

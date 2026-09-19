@@ -1,0 +1,98 @@
+{
+  "_comment": "AnimekoLocalGuard 事实声明文件示例（**完全虚构**，仅演示格式）。真实作品需由人撰写命题；工具不会推断剧情。字段说明见 docs/DECLARATION_FORMAT.md。本文件由 FactDeclarationFileTest 直接读取校验，因此不会与格式脱节。",
+  "_notes": [
+    "F_NO_ANCHOR 演示“知道是哪一集、但没有可定位台词”：时间保持未知，因此永远不会自动解锁。",
+    "F_NEVER 演示永远受保护：有证据证明原作尚未动画化。",
+    "此处「._comment」「._notes」以下划线开头的键都不是格式字段，仅作阅读说明；解析时被忽略。"
+  ],
+  "declarationVersion": 1,
+  "workId": "FICTIONAL-001",
+  "title": "虚构测试作品",
+  "seasonLabel": "S1",
+  "coveredEpisodesStart": 1.0,
+  "coveredEpisodesEnd": 3.0,
+  "contentVersion": "fictional-2026-09-19",
+  "baselineVersionLabel": "虚构基准版（TV 放送版）",
+  "sourceNote": "仅用于演示格式，全部内容为虚构，不含任何真实作品信息。",
+  "episodes": [
+    { "episodeNumber": 1.0, "stableId": "ep1", "displayLabel": "第1集" },
+    { "episodeNumber": 2.0, "stableId": "ep2", "displayLabel": "第2集" },
+    { "episodeNumber": 3.0, "stableId": "ep3", "displayLabel": "第3集" }
+  ],
+  "entities": [
+    {
+      "entityId": "E_A",
+      "canonicalName": "虚构角色甲",
+      "aliases": ["甲", "小甲"],
+      "ambiguousAliases": ["老师", "队长"]
+    },
+    {
+      "entityId": "E_B",
+      "canonicalName": "虚构角色乙",
+      "aliases": ["乙"]
+    }
+  ],
+  "facts": [
+    {
+      "factId": "F_IDENTITY",
+      "proposition": "虚构角色甲的真实身份是虚构角色乙的同伴",
+      "entityIds": ["E_A", "E_B"],
+      "severity": "MAJOR",
+      "anchors": [
+        {
+          "episodeNumber": 1.0,
+          "quote": "虚构角色甲其实是虚构角色乙的同伴"
+        }
+      ],
+      "sourceId": "fictional-sample.ep1.vtt",
+      "verification": "VERIFIED"
+    },
+    {
+      "factId": "F_MOTIVE",
+      "proposition": "虚构角色乙的动机是保护甲",
+      "entityIds": ["E_B"],
+      "severity": "MAJOR",
+      "anchors": [
+        {
+          "episodeNumber": 2.0,
+          "quote": "虚构角色乙的动机是保护甲"
+        }
+      ],
+      "sourceId": "fictional-sample.ep2.vtt",
+      "verification": "VERIFIED"
+    },
+    {
+      "factId": "F_ENDING",
+      "proposition": "虚构作品结局：甲与乙分开",
+      "entityIds": ["E_A", "E_B"],
+      "severity": "MAJOR",
+      "anchors": [
+        {
+          "episodeNumber": 3.0,
+          "quote": "结局是甲与乙分开"
+        }
+      ],
+      "sourceId": "fictional-sample.ep3.vtt",
+      "verification": "VERIFIED"
+    },
+    {
+      "factId": "F_NO_ANCHOR",
+      "proposition": "虚构事实：只有集号，没有可定位台词",
+      "entityIds": ["E_A"],
+      "severity": "MINOR",
+      "anchors": [],
+      "episodeNumberWhenTimingUnknown": 2.0,
+      "verification": "SOURCED_UNVERIFIED"
+    },
+    {
+      "factId": "F_NEVER",
+      "proposition": "虚构事实：覆盖范围内永不解锁",
+      "entityIds": ["E_B"],
+      "severity": "MAJOR",
+      "anchors": [],
+      "episodeNumberWhenTimingUnknown": 1.0,
+      "verification": "VERIFIED",
+      "neverUnlocksInScope": true
+    }
+  ]
+}

@@ -1,0 +1,690 @@
+{
+  "_readme": "AnimekoLocalGuard 状态文件。status 词汇严格区分：DESIGNED(仅设计)/IMPLEMENTED(代码已写)/STATIC_EVIDENCE(静态读取代码或文件得到)/UNIT_TESTED(单元测试通过)/UNIT_TESTED_STANDALONE(独立构建器下单测通过，非上游Gradle)/BUILT(构建成功)/DEVICE_VERIFIED(真机验证)/MODEL_EVALUATED(模型已评估)/BLOCKED(阻塞)/UNKNOWN(未知)。不要把多项合并为一个『完成』。",
+  "schemaVersion": 2,
+  "updatedAt": "2026-09-19T20:40:00+08:00",
+  "project": "AnimekoLocalGuard",
+  "currentStage": "G0_DONE_BUILT__G1_PURE_LOGIC_UNIT_TESTED_ON_UPSTREAM_GRADLE__UI_SWITCH_IMPLEMENTED__DEVICE_PENDING",
+  "stageStatus": {
+    "G0_migration_and_baseline": "DONE_BUILT__UPSTREAM_GRADLE_TEST_TASK_WORKS",
+    "G1_three_tiers_and_time_rules": "ALL_FIVE_DELIVERABLES_IMPLEMENTED_AND_UNIT_TESTED_146__INTEGRATED_AND_BUILT__COMPLETION_CRITERIA_NOT_MET_REAL_SEMANTICS_AND_DEVICE_VERIFICATION_PENDING",
+    "G2_two_works_timeline_closure": "PENDING_MATERIALS__SHORTLIST_MEASURED__TOOLING_READY__NO_REAL_WORK_PACK_YET",
+    "G3_on_device_local_ai": "NOT_STARTED",
+    "G4_expand_to_ten_and_prescoring": "NOT_STARTED",
+    "G5_full_acceptance": "NOT_STARTED"
+  },
+  "masterPrompt": {
+    "path": "docs/DeepSeek_Animeko_LocalGuard_Master_Prompt.txt",
+    "lines": 317,
+    "bytes": 33733,
+    "sha256": "4a3aa13713fbbaae6a370d0292c63eaf74e5a03ee2dcc1ab2310f1ae49b2cbae",
+    "fullyRead": true,
+    "readSegments": [[1, 45], [46, 105], [106, 165], [166, 225], [226, 275], [276, 317]],
+    "status": "VERIFIED",
+    "note": "2026-09-19 该文件不在工作区 docs/ 下（此前未随迁移复制过来，而非内容损坏）。已从旧工程 D:\\模型\\BiliLocalGuard\\docs\\ 的原件复制恢复，恢复后 SHA-256（4a3aa137…2cbae）、33733 字节、317 行三项均与记录一致。旧工程原件未改动。此前记录里的 sha256 字符串少一位（63 字符），已按实测修正为 64 字符。"
+  },
+  "upstreamLock": {
+    "repo": "https://github.com/open-ani/animeko.git",
+    "localPath": "D:\\模型\\AnimekoLocalGuard",
+    "branch": "main",
+    "commit": "28ec14aca0a2b001f2ce1f6dd1b68acd44a14f67",
+    "commitDate": "2026-09-18T13:04:32+08:00",
+    "commitSubject": "fix(ci): sqlite_bindings.cpp 优先从 GitHub 镜像下载, googlesource 作为备用来源 (#3434)",
+    "license": "AGPL-3.0",
+    "repoSizeMB": 582,
+    "localModifications": ["settings.gradle.kts (+1 includeProject line)", "local.properties (new, gitignored)", "danmaku/localguard/** (new module)", "docs/DECISIONS.md, docs/INTEGRATION.md, PROGRESS.md, NEXT.md, STATE.json (new)", "tools/** (new dev scripts)"],
+    "status": "VERIFIED"
+  },
+  "toolchainRequired": {
+    "gradle": {"value": "9.3.1", "source": "gradle/wrapper/gradle-wrapper.properties", "status": "STATIC_EVIDENCE"},
+    "kotlin": {"value": "2.4.10", "source": "gradle/libs.versions.toml", "status": "STATIC_EVIDENCE"},
+    "agp": {"value": "9.1.1", "source": "gradle/libs.versions.toml", "status": "STATIC_EVIDENCE"},
+    "jdkToolchain": {"value": "21", "vendor": "jetbrains (JBR with JCEF)", "source": "gradle.properties", "status": "STATIC_EVIDENCE"},
+    "compileSdk": {"value": 37, "status": "STATIC_EVIDENCE"},
+    "minSdk": {"value": 27, "status": "STATIC_EVIDENCE"},
+    "androidSdkPackages": {"value": ["platform-tools", "platforms;android-37.0", "build-tools;36.0.0"], "source": ".github/workflows/build.yml", "status": "STATIC_EVIDENCE"},
+    "defaultAbi": {"value": "arm64-v8a", "status": "STATIC_EVIDENCE"}
+  },
+  "toolchainLocal": {
+    "jdk21": {"path": ".tools/jdk21/jdk-21.0.12.1+1", "version": "21.0.12.1+1", "sha256OfZip": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e", "checksumVerifiedAgainstAdoptiumApi": true, "status": "VERIFIED"},
+    "androidSdk": {"path": ".tools/android-sdk", "components": {"platforms/android-37.0": "platform-37.0_r02.zip sha256 840b23e827f96e64aea4c89a1194aac3dc5f6bad37edb231c5c795d890330e8d", "build-tools/android-16 (r36.0.0)": "build-tools_r36_windows.zip sha256 aa1095cb14d83e483818a748a2c06faaeb8e601561b06a356a119a1b2ca280d3", "platform-tools": "platform-tools_r37.0.1-win.zip sha256 45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99"}, "installMethod": "manual extract from repository2-3.xml URLs (sdkmanager failed, see blockers B5)", "status": "VERIFIED"},
+    "gradleUserHome": {"path": ".tools/gradle-home", "asciiAlias": "D:\\al-tools\\gradle-home", "status": "VERIFIED", "note": "构建时必须经 ASCII 别名访问，见 W1"},
+    "gradleDistribution": {"path": ".tools/gradle-9.3.1/gradle-9.3.1", "asciiAlias": "D:\\al-tools\\gradle-9.3.1\\gradle-9.3.1", "version": "9.3.1", "zipSha256Prefix": "b266d5ff", "status": "VERIFIED"},
+    "asciiJunctions": {
+      "note": "在盘符根建立的目录联接（junction），不复制也不修改任何现有文件；删除即还原",
+      "items": [
+        {"path": "D:\\alrepo", "target": "D:\\模型\\AnimekoLocalGuard", "status": "VERIFIED"},
+        {"path": "D:\\al-tools", "target": "D:\\模型\\AnimekoLocalGuard\\.tools", "status": "VERIFIED"}
+      ]
+    },
+    "kotlinCompilerStandalone": {"path": ".tools/downloads/kotlin-compiler-embeddable-2.4.20.jar", "verifiedWorksOnJdk21": true, "status": "VERIFIED"}
+  },
+  "environment": {
+    "os": {"value": "Windows 10 Home China 25H2 Build 26200.9457", "status": "VERIFIED"},
+    "isAdmin": {"value": false, "status": "VERIFIED"},
+    "disk": {"C_free_gb": 12.1, "D_free_gb": 152.3, "status": "VERIFIED"},
+    "globalJavaAndroidSdk": {"value": "absent", "status": "VERIFIED"},
+    "windowsTlsStack": {"value": "broken (schannel SEC_E_NO_CREDENTIALS)", "status": "VERIFIED"},
+    "gitConfigUsed": {"value": "command-line -c only, no global changes", "status": "VERIFIED"},
+    "powershell": {
+      "usedForBuildScripts": "Windows PowerShell 5.1 (powershell.exe)",
+      "consequence": "BOM-less .ps1 with non-ASCII characters is decoded as the ANSI code page (GBK here) and can break string literals; `&&` / `||` are not valid statement separators",
+      "rule": "keep .ps1 files pure ASCII (as tools/build_android.ps1 and tools/device_verify.ps1 are); put Chinese prose in docs/*.md instead",
+      "status": "STATIC_EVIDENCE",
+      "hitThisRound": "tools/device_verify.ps1 first written with Chinese strings failed to even parse; rewritten as pure ASCII"
+    }
+  },
+  "device": {
+    "connected": {"value": false, "status": "VERIFIED", "checkedAt": "2026-09-19T20:50:00+08:00", "checkMethod": ".tools/android-sdk/platform-tools/adb.exe devices -l => empty list (checked again this round)"},
+    "installedAnimeko": {"value": null, "status": "UNKNOWN", "note": "blocked by B1"},
+    "lastKnownFromPreviousProject": {"rawBrand": "Redmi", "rawModel": "23113RKC6C", "rawDevice": "vermeer", "android": "15", "sdk": 35, "abi": "arm64-v8a", "rooted": false, "bootloaderLocked": true, "status": "STATIC_EVIDENCE", "note": "本轮仍未重新验证"},
+    "verificationTooling": {
+      "script": "tools/device_verify.ps1",
+      "checklist": "docs/G1_DEVICE_CHECKLIST.md",
+      "defaultMode": "read-only",
+      "writesRequire": "-Install / -Launch switches",
+      "status": "IMPLEMENTED + EXECUTED_ONCE_WITHOUT_DEVICE",
+      "executedEvidence": "本轮在无设备条件下实际运行过：正确输出 'No device detected.' 并以 exit=3 结束，未写入设备",
+      "guarantees": [
+        "包名与签名共同保证不会覆盖手机上的官方 Animeko（两道机制，不靠操作者小心）",
+        "不 root、不 remount、不卸载、不清数据",
+        "官方 Animeko 的版本与 APK SHA-256 从设备读回后计算，不依赖任何官方发布信息"
+      ]
+    }
+  },
+  "independentIdentity": {
+    "namespace": {"value": "me.him188.ani.android", "changed": false, "status": "STATIC_EVIDENCE"},
+    "upstreamApplicationId": {"value": "me.him188.ani", "changed": false, "status": "STATIC_EVIDENCE"},
+    "debugApplicationIdSuffix": {"value": ".localguard", "resultingApplicationId": "me.him188.ani.localguard", "mechanism": "local.properties ani.android.debug.applicationIdSuffix", "written": true, "status": "IMPLEMENTED"},
+    "localPropertiesCreated": {"value": true, "path": "local.properties", "gitignored": true, "status": "VERIFIED"},
+    "ownSigningKeystore": {"value": null, "status": "NOT_STARTED", "note": "debug 变体可用上游 debug 签名；自有密钥库待生成"}
+  },
+  "integrationPoints": {
+    "status": "STATIC_EVIDENCE",
+    "evidenceDoc": "docs/INTEGRATION.md",
+    "P1_session": {
+      "file": "danmaku/api/src/commonMain/kotlin/DanmakuCollection.kt",
+      "types": ["DanmakuCollection.at(progress, playbackSpeed, danmakuRegexFilterList)", "DanmakuSession", "DanmakuEvent.Add", "DanmakuEvent.Repopulate", "TimeBasedDanmakuSession", "DanmakuSessionAlgorithm"],
+      "note": "Add 与 Repopulate 两条路径都必须过时间策略，否则拖动进度条可绕过"
+    },
+    "P2_loader": {
+      "file": "app/shared/app-data/src/commonMain/kotlin/domain/episode/EpisodeDanmakuLoader.kt",
+      "members": ["danmakuSessionFlow", "danmakuEventFlow", "requestRepopulate()", "setEnabled(serviceId, enabled)", "setShiftMillis(serviceId, shiftMillis)"],
+      "note": "播放位置来自 player.currentPositionMillis（媒体位置，非墙上时钟）"
+    },
+    "P3_display_conversion_recommended": {
+      "file": "app/shared/src/commonMain/kotlin/ui/subject/episode/EpisodeViewModel.kt",
+      "lines": "662-694",
+      "symbol": "uiDanmakuEventFlow",
+      "note": "推荐主拦截点：两条事件路径在此收口，且是显示前最后一道"
+    },
+    "P4_display_sink_not_hook": {
+      "file": "app/shared/src/commonMain/kotlin/ui/danmaku/PlayerDanmakuHost.kt",
+      "symbols": ["DanmakuHostState.trySend", "DanmakuHostState.repopulate", "UIDanmakuEvent"],
+      "note": "到达此处已太晚，不作为拦截点"
+    },
+    "dataModel": {
+      "DanmakuInfo": "id, serviceId, senderId, content",
+      "DanmakuContent": "playTimeMillis, color, text, location",
+      "DanmakuLocation": ["TOP", "BOTTOM", "NORMAL"],
+      "DanmakuServiceId": ["Animeko", "Acfun", "Baha", "Bilibili", "Dandanplay", "Tucao"],
+      "note": "AI 必须作用于全部来源；senderId 不得写入日志"
+    },
+    "unresolved": [
+      "DanmakuLoader 缓存路径是否汇入同一 fetchResultFlow",
+      "手动匹配弹幕源是否走同一 danmakuSessionFlow",
+      "allDanmakuFlow（弹幕列表 UI）是否属于过滤范围",
+      "是否存在其他显示入口（需穷举确认）",
+      "设置项持久化位置",
+      "当前视频→基准剧情版本的映射入口"
+    ],
+    "resolvedThisRound": [
+      "作品/剧集标识来源 → SubjectEpisodeInfoBundle.subjectId/episodeId + EpisodeInfo.ep/sort/type（见 episodeIdentityEvidence）",
+      "会话隔离与 generation → 上游 EpisodeSession 已提供 per-episode 作用域 + 切集取消（见 episodeIdentityEvidence.sessionIsolation）"
+    ]
+  },
+  "episodeIdentityEvidence": {
+    "status": "STATIC_EVIDENCE",
+    "doc": "docs/INTEGRATION.md 第9节",
+    "workAndEpisodeKeys": {
+      "type": "SubjectEpisodeInfoBundle (app/shared/app-data/.../domain/episode/SubjectEpisodeInfoBundle.kt)",
+      "fields": ["subjectId: Int", "episodeId: Int", "subjectCollectionInfo", "episodeCollectionInfo", "seriesInfo", "subjectCompleted"],
+      "accessors": ["subjectInfo: SubjectInfo", "episodeInfo: EpisodeInfo"],
+      "note": "subjectId+episodeId 已流入 EpisodeDanmakuLoader，可直接用于绑定剧情包"
+    },
+    "episodeNumbering": {
+      "type": "EpisodeInfo (app/shared/app-data/.../data/models/episode/EpisodeInfo.kt)",
+      "fields": ["episodeId", "type: EpisodeType?", "name", "nameCn", "airDate", "desc", "sort: EpisodeSort", "ep: EpisodeSort?"],
+      "typeComment": "0本篇/1SP/2OP/3ED",
+      "epComment": "条目内的集数, 从1开始。非本篇剧集的此字段无意义",
+      "displayName": "nameCn.ifBlank { name }",
+      "episodeSort": "sealed class EpisodeSort (datasource/api/.../EpisodeSort.kt): Normal(number:Float, 仅整数与.5; isPartial=number%1==0.5) / Special(type:EpisodeType, number:Float?) / Unknown(raw:String)",
+      "episodeType": "enum (datasource/api/.../EpisodeType.kt): MainStory, SP, OP, ED, PV, MAD, OVA, OAD",
+      "ordering": "Normal < Special < Unknown；Special 之间先按 type 再按 number",
+      "mappingNote": "ep -> 知识包 RevealBoundary.episodeNumber（保留小数不取整）；sort/type -> 系列集序与特别篇显式顺序；Unknown 不得猜测"
+    },
+    "sessionIsolation": {
+      "type": "EpisodeSession (app/shared/app-data/.../domain/episode/EpisodeSession.kt)",
+      "note": "与 episodeId 强绑定，持有 sessionScope；切集须 cancel 并新建，切换逻辑在 EpisodeFetchSelectPlayState.switchEpisode",
+      "reuseForGeneration": "AI 判定任务应挂在该 per-episode 作用域下，'旧异步结果不得塞回新会话'由上游机制保证",
+      "warning": "上游 KDoc 明确警告：从外层 flow 调用 getCurrentEpisodeId() 可能拿到已变化的新集数；应使用所观察 session 自己的 episodeId"
+    },
+    "newModuleFile": "knowledge/EpisodeOrder.kt (+ EpisodeOrderTest 18 cases)"
+  },
+  "g1PureLogic": {
+    "module": "danmaku/localguard",
+    "registeredInSettingsGradle": true,
+    "g1DeliverableStatus": {
+      "_note": "G1 要求五项：三档、时间规则、错误状态、缓存隔离、可关闭。逐项如实标注。",
+      "three_tiers": "IMPLEMENTED + UNIT_TESTED。除单调嵌套（宽松 ⊆ 均衡 ⊆ 严格，有限域穷举 >1000 输入）外，本轮补上**两两可区分**断言：若均衡与严格行为相同，嵌套照样成立但用户少一档。可区分性还必须方向正确——更严格档位不得放行较宽松档位已屏蔽的内容",
+      "reveal_timeline_rules": "IMPLEMENTED + UNIT_TESTED（揭晓边界、保守余量、跨集显式顺序、对齐映射、未映射不插值）",
+      "error_states": "IMPLEMENTED + UNIT_TESTED。本轮修掉一个“写了没接线”问题：modelFailed/modelLoadFailed 此前只在测试里被设过，生产路径永远进不了 MODEL_FAILURE。现改为由客观事实推导——安装过真实提供者即 semanticsReady；观察到分析失败即 modelFailed（缓存命中路径也更新，一次成功会清除标记）；modelLoadFailed 供调用方报告不可恢复故障",
+      "cache_isolation": "IMPLEMENTED + UNIT_TESTED 且已接入生产路径（两级分层：factIds 为空→通用层可跨作品/跨集；非空→事实层绑定作品+集数+资料版本+语义窗口）。DisplayDecisionCache 刻意未接线，理由见 docs/evidence/build_success_guard_cache.txt",
+      "can_be_turned_off": "IMPLEMENTED + BUILT（界面开关默认关闭、三档可选、持久化；关闭时判定路径无配置读取与缓存查询）",
+      "all_text_entrances": "IMPLEMENTED + BUILT。全应用只有 2 个真实弹幕文字显示入口：①覆盖层 PlayerDanmakuHost（EpisodePage.kt:1049，全应用唯一调用点）；②弹幕列表（DanmakuListItem.content = 弹幕原文）。两处均已接入守卫。缓存恢复路径、手动匹配路径经证据确认都汇入同一 fetchResultFlow，无旁路。重复回调有专门回归测试 DuplicateCallbackTest（8 例）",
+      "knowledge_pipeline": "IMPLEMENTED + BUILT。剧情包已成为可落盘磁盘格式（全部 @Serializable、@SerialName 钉住多态判别值、factsById 为 @Transient 派生字段）；装载层区分 Loaded/Unusable/Absent 三种状态，版本高于支持范围时拒绝而不是猜测性读取；**装载时真的跑结构校验**（结构错误拒绝、证据问题只记录）；EpisodeViewModel 现在真的把 knowledge/alignment/workId 传给 startEpisode。路径约定 story/<workId>.json，workId = 上游 subjectId；Android 从 APK assets 读取，桌面/iOS 刻意不提供",
+      "end_to_end_pipeline": "IMPLEMENTED + UNIT_TESTED（PipelineEndToEndTest）。明确走一遍 字幕→剧情包→落盘→装载(含校验)→对齐生成→驱动判定，用于抓接口层面的断裂——本项目已 5 次出现“实现了但没接线”。另提供 tools/audit_dead_code.js 做系统审计，主动找这类问题",
+      "knowledge_generation": "IMPLEMENTED + UNIT_TESTED。生成流程：人手写 FactDeclaration（命题/实体/严重程度/核对状态/证据锚）+ 带时间字幕 → 工具推导揭晓时间区间并随包产出校验报告。三条不可违背规则：不发明时间（定位不到就保持未知）、不静默丢事实（失败产出可见提示，一条坏证据不让整包作废）、不放过结构错误。字幕解析支持 WebVTT/SRT，解析问题带文件名与行号。**工具不推断剧情**：命题必须由人声明",
+      "alignment_generation": "IMPLEMENTED + UNIT_TESTED。按台词文本配对两版字幕 → 偏移样本 → 中位数作常量偏移 → 分位残差超限则按偏移阶跃切分分段映射 → 都不行就明确拒绝（调用方降级 Unaligned，永不退化成偏移 0）。三条规则：样本少于 5 个就拒绝、残差过大就拒绝、分段之间不插值。关键参数：残差判据用 90 分位（非最大值）、剪辑判定用 2000ms 偏移阶跃（非端点连线）",
+      "completion_criteria": "NOT_MET：G1 完成标志后半“真实条目显示前受控”需真机 + 真实语义来源。当前 knowledge/alignment 链路与两个生成工具均已就绪，但 APK 内未放置任何剧情包或对齐文件、semanticsProvider 仍返回 null，因此打开开关不会屏蔽任何弹幕",
+      "episode_number_mapping": "IMPLEMENTED + UNIT_TESTED。上游集序 → 知识库集序的适配层为 app/shared/.../data/repository/danmaku/LocalGuardEpisodeOrder.kt，测试 LocalGuardEpisodeOrderTest（18 例）。三条规则：ep（当季集数）优先于 sort（系列集数）；Special(MainStory,n) 仍是正片；其他特别篇需知识包显式声明位置，否则不可映射。此前 EpisodeViewModel 直接读 ep/sort 的 number，会把特别篇的编号当成正片集数、也会把跨季集数当成当季集数——两个方向都可能让本该拦住的弹幕被放行"
+    },
+    "knownGapsAfterWiring": {
+      "_note": "接线后仍然存在的空缺，如实记录，不当作已完成。",
+      "resolveSpecialNotWired": "EpisodeOrderMapper.resolveSpecial 仍只被测试使用。要让特别篇能映射到知识库集序，需要把**已装载的知识包里的 specials 列表**传进适配层；当前 EpisodeViewModel 只传 ep/sort，因此特别篇一律降级为'集数未知'。这是安全的降级方向（不会拿错集数去判定），但在有真实知识包之前不会改善。",
+      "compareEpisodeOrderNotWired": "compareEpisodeOrder 仍只被测试使用。跨集顺序判定目前走会话内的显式顺序（knowledge 里的 episode 顺序），不依赖此函数；保留它是为了知识包侧的顺序语义有独立可测定义。",
+      "emptyDefaultSort": "EpisodeInfo.sort 的默认值是 EpisodeSort('')。适配层把它解析为 Unknown → 集数未知。这是刻意的（不得当成第 1 集），但意味着任何 sort 为空的条目都得不到保护。已用测试钉住该行为。"
+    },
+    "sourceSetLayout": {"commonMain": "policy/ + knowledge/", "commonTest": "kotlin.test + JUnit5", "devrun": "standalone reflection runner"},
+    "files": [
+      "policy/GuardTypes.kt", "policy/TierPolicy.kt", "policy/DanmakuGuardEngine.kt",
+      "policy/GuardUserConfig.kt", "policy/DanmakuGuardSession.kt", "policy/GuardStatus.kt",
+      "knowledge/StoryKnowledge.kt", "knowledge/AlignmentResolver.kt", "knowledge/KnowledgePackValidator.kt",
+      "knowledge/EpisodeOrder.kt", "cache/SemanticsCache.kt"
+    ],    "tierParameters": {
+      "LENIENT": {"contentViolationThreshold": 0.80, "explicitSpoilerThreshold": 0.85, "hintSpoilerThreshold": 0.95, "revealMarginMillis": 0, "unknownFactFloor": 0.95, "onUnmappedAlignment": "BlockOnlyHighConfidenceSpoilers"},
+      "BALANCED": {"contentViolationThreshold": 0.60, "explicitSpoilerThreshold": 0.60, "hintSpoilerThreshold": 0.80, "revealMarginMillis": 15000, "unknownFactFloor": 0.80, "onUnmappedAlignment": "BlockOnlyHighConfidenceSpoilers"},
+      "STRICT": {"contentViolationThreshold": 0.35, "explicitSpoilerThreshold": 0.35, "hintSpoilerThreshold": 0.55, "revealMarginMillis": 30000, "unknownFactFloor": 0.55, "onUnmappedAlignment": "BlockAllSpoilersAboveThreshold"},
+      "note": "阈值与余量是可测量的取舍参数，不是概率，也不是已验证最优值；需真实验证集校准"
+    },
+    "decisionStates": ["Visible", "BlockedContent", "BlockedSpoiler", "Pending", "Expired", "Failed"],
+    "spoilerBlockReasons": ["FutureEpisode", "SameEpisodeNotYetRevealed", "TimingUnknown", "NeverUnlocksInScope", "AlignmentUnverified", "UnmappedRegion"],
+    "tests": {
+      "standalone": {
+        "command": "powershell -ExecutionPolicy Bypass -File tools/build_localguard_standalone.ps1 -Clean",
+        "total": 292, "pass": 292, "fail": 0, "classes": 19,
+        "evidence": "docs/evidence/standalone_policy_tests.txt",
+        "status": "UNIT_TESTED_STANDALONE",
+        "note": "kotlinc + 反射运行器，不经 Gradle；用例类由扫描编译输出目录自动发现；工具链已对齐上游 Kotlin 2.4.10；-Only <子串> 可只跑某个类。本轮 290→292：新增两条把**随仓库发布的示例字幕文件**接进测试的用例（既校验声明文件、也钉住由引文推导出的具体毫秒）"
+      },
+      "upstreamGradle": {
+        "command": "powershell -ExecutionPolicy Bypass -File tools/build_android.ps1 -Task \":danmaku:localguard:testAndroidHostTest\"",
+        "total": 292, "pass": 292, "fail": 0, "skipped": 0, "classes": 19, "elapsedMinutes": 4.7,
+        "evidence": "docs/evidence/gradle_unit_tests_round19.txt",
+        "resultXml": "danmaku/localguard/build/test-results/testAndroidHostTest/*.xml",
+        "status": "UNIT_TESTED",
+        "note": "上游 Gradle 的 Android host test 任务真实执行并通过，与独立运行器用例数一致（292/292，19 个类，互为交叉验证）。结果 XML 直接汇总：files=19 tests=292 failures=0 skipped=0"
+      },
+      "appSharedPersistence": {
+        "command": "powershell -ExecutionPolicy Bypass -File tools/build_android.ps1 -Task \":app:shared:testAndroidHostTest\"",
+        "total": 119, "pass": 119, "fail": 0, "skipped": 0, "classes": 9,
+        "newClass": "me.him188.ani.app.data.repository.danmaku.LocalGuardEpisodeOrderTest (18 例)",
+        "alsoNew": "me.him188.ani.app.data.repository.danmaku.GuardConfigRepositoryTest (7 例)",
+        "evidence": "docs/evidence/gradle_unit_tests_round19_appshared.txt",
+        "status": "UNIT_TESTED",
+        "note": "包含 app/shared 既有测试（101→117）。核对方式：node tools/test_result_summary.js 直接扫结果 XML（PowerShell 5.1 会因用例名里的非 ASCII 字符解析 XML 失败，不要用 Get-Content 转 [xml]）"
+      },
+      "appSharedCountReconciliation": {
+        "_note": "口径对齐记录，避免把两个数字混为一谈。",
+        "previous": 101,
+        "current": 119,
+        "delta": 18,
+        "explainedBy": "本轮新增的 LocalGuardEpisodeOrderTest 恰好 18 例；GuardConfigRepositoryTest 的 7 例已包含在 101 基线内",
+        "status": "STATIC_EVIDENCE"
+      },
+      "propertyTestInputs": ">1000 (score grid 0.00-1.00 step 0.01 x reveal boundary +-60s x 4 alignments x multi-fact/cross-episode/no-fact/unknown-fact)",
+      "testDataNote": "全部为虚构剧情 fixture，不含任何真实作品关键剧透"
+    },
+    "bugsFoundAndFixedByTests": [
+      "未知时间事实在宽松档会被放行（把'时间未知'与'对齐失败'的降级门槛混为一谈）→ 新增 unknownFactFloor，按档位单调下降",
+      "RevealBoundary 构造期 require 阻止了非法区间被构造，导致校验器无法报告该错误 → 改为由 KnowledgePackValidator 报告",
+      "特别篇无编号时被误判为 Unknown（parse 先命中空串分支）→ 类别已知时允许序号缺失，返回 Special(number=null)",
+      "两条 unknown-timing 测试用例位置设定错误（放在第3集，先被剧集顺序解锁，未测到目标分支）→ 修正为同集位置并补充语义用例",
+      "端到端用例选错类别与分数（用 SPOILER_HINT 0.90，但宽松档暗示阈值是 0.95，未进入剧透分支）→ 改用 SPOILER_EXPLICIT 0.90，并新增'同分数因档位阈值不同而结论不同'的用例",
+      "独立测试运行器把用例类名**硬编码**在列表里，新增 SemesterCacheTest/GuardStatusTest 后总数仍显示旧的 107，新用例被静默漏跑 → 改为扫描已编译测试输出目录自动发现，并在输出首行打印发现的类数",
+      "GuardStatusTest 中断言 total=10，但 GuardCounters.total 是各项之和的计算属性（实际 12）；该断言无价值（数行数/钉死聚合值）→ 改为断言 total 等于 counters.total 且各分类之和自洽，并把'不含自由文本'改为对每行做 key=value 形式校验"
+    ]
+  },
+  "g1UiAndPersistence": {
+    "status": "IMPLEMENTED",
+    "summary": "播放页弹幕设置里新增本地过滤分组：总开关（默认关闭）、三档严格程度、以及由客观能力推导的运行状态行。开关与档位持久化到偏好设置的独立键。",
+    "files": [
+      {"path": "app/shared/src/commonMain/kotlin/ui/subject/episode/video/settings/EpisodeVideoSettings.kt", "change": "新增 EpisodeVideoSettingsLocalGuard 分组；ViewModel 注入 GuardConfigRepository"},
+      {"path": "app/shared/src/commonMain/kotlin/ui/subject/episode/video/components/EpisodeVideoSideSheet.kt", "change": "DanmakuSettingsNavigatorSheet 增加可选 localGuardStatus 参数"},
+      {"path": "app/shared/src/commonMain/kotlin/ui/subject/episode/EpisodePage.kt", "change": "收集 localGuardStatusFlow 并传入设置页"},
+      {"path": "app/shared/src/commonMain/kotlin/ui/subject/episode/EpisodeViewModel.kt", "change": "localGuardConfigSource 改为注入持久化来源；新增 localGuardStatusFlow 与 setLocalGuardEnabled/setLocalGuardTier"},
+      {"path": "app/shared/src/commonMain/kotlin/data/repository/danmaku/GuardConfigRepository.kt", "change": "新增：DataStore 持久化（两个独立键）+ 首次访问读取 + 持续同步。放在 :app:shared 而不是 app-data，因为 app-data 声明 localguard 依赖会破坏该模块的脚本编译，而 :app:shared 本身同时依赖 app-data 与 localguard"},
+      {"path": "app/shared/application/src/commonMain/kotlin/platform/CommonKoinModule.kt", "change": "注册 GuardConfigRepository 单例"},
+      {"path": "app/shared/app-lang/src/androidMain/res/values*/strings.xml", "change": "新增 9 条文案 × 4 个语言文件"},
+      {"path": "danmaku/localguard/src/commonMain/kotlin/me/him188/ani/danmaku/localguard/policy/GuardStatus.kt", "change": "新增：面向上层的状态快照，不含任何剧情信息"},
+      {"path": "danmaku/localguard/src/commonMain/kotlin/me/him188/ani/danmaku/localguard/policy/GuardUserConfig.kt", "change": "GuardConfigSource 改为 Flow + suspend 写入 + 同步 current"},
+      {"path": "danmaku/localguard/src/commonMain/kotlin/me/him188/ani/danmaku/localguard/policy/DanmakuGuardSession.kt", "change": "构造参数改为 (configSource, knowledge?, alignment, scope)；新增 captureStatus/semanticsReady/modelFailed"}
+    ],
+    "designConstraints": [
+      "文案明确写“原型阶段：仅固定规则与时间线测试，尚未内置 AI 模型”，不出现“AI 防剧透已启用”",
+      "开关与档位分两个键存储，单字段损坏不连带丢弃开关",
+      "读不到/认不出/读失败一律回退为关闭（与官方行为一致）",
+      "状态行由客观能力推导：开关打开永远不会被显示为已启用",
+      "面向界面的结构不含弹幕正文与剧情事实，且有测试逐行校验其形式"
+    ],
+    "caveat": "代码已写并已通过编译验证前，不声称任何界面行为已生效；界面是否真的能开、状态是否正确显示，需真机确认",
+    "tests": "GuardStatusTest 9 例 + GuardConfigRepositoryTest 8 例 + DanmakuGuardSessionTest 新增状态快照 8 例（仓库层测试需上游 Gradle 运行）"
+  },
+  "knownLimitations": {
+    "asciiPathRootCause": "见 W1 与 docs/ASCII_PATH.md：非 ASCII 路径会让 Gradle 的 worker classpath @argfile 解析失败，测试任务静默不产出任何结果",
+    "blockingReadInRepository": "GuardConfigRepository 首次访问时阻塞读取一次偏好设置（约毫秒级），用于保证不出现“先报默认关闭再纠正”的窗口；这是已知代价，已记录",
+    "testFileOverwriteIncident": "DanmakuGuardSessionTest.kt 曾被整文件覆盖且未被 git 跟踪。已从编译产物恢复全部 23 个用例名与断言文案，据此重建用例体并通过 124/124，但函数体属推理重建而非逐字还原。详见 PROGRESS.md 第〇之二节第 5 条"
+  },
+  "materialSurvey": {
+    "status": "STATIC_EVIDENCE",
+    "doc": "docs/MATERIAL_SURVEY.md",
+    "rawData": ["docs/evidence/bangumi_candidates.json", "docs/evidence/danmaku_coverage.json"],
+    "tools": ["tools/bangumi_top.js", "tools/danmaku_coverage.js", "tools/http_util.js"],
+    "networkingNote": "本机无法直连 api.bgm.tv（连接超时）。必须经本机代理 127.0.0.1:7897 做 HTTP CONNECT 隧道；undici 在此脚本位置不可解析，因此用 net+tls 手写隧道。**chunked 响应必须按字节解块**：chunk 长度是字节数而 JS 字符串下标是 UTF-16 码元，混用会在遇到多字节字符时错位（本项目实际踩过）。",
+    "danmakuSourcesActuallyShipped": [
+      {"id": "Animeko", "endpoint": "GET https://danmaku-cn.myani.org/v1/danmaku/{episodeId}", "needsCredentials": false, "reachable": true},
+      {"id": "Dandanplay", "needsCredentials": true, "reachable": false, "verifiedFailure": "GET /api/v2/search/episodes 返回 errorCode 3「应用不存在」"},
+      {"note": "Bilibili/AcFun/Baha/Tucao 四个 DanmakuServiceId 只是标签，数据全部由 DanDanPlay 聚合，无独立实现；缺凭据时这四家弹幕一条都拿不到"}
+    ],
+    "danmakuCoverageOfTop10": "极低。抽样每部前 6 集：命运石之门 128 条、CLANNAD AS 112 条、进击的巨人 S3P2 87 条，其余多为个位数；攻壳 S.A.C. 与 水星领航员 几乎为零（6 集共 1-2 条）。真实观看场景一集通常几百到几千条，本机可用源只能提供其约 1%。",
+    "notObtainable": [
+      "带时间字幕（不在任何 API 里）——这是 G2 的真正瓶颈",
+      "Ani 的番剧视频源（需登录/会员，且属受版权保护内容；master prompt 明确不要先大量下载）",
+      "DanDanPlay 聚合弹幕（需 appId/appSecret）"
+    ],
+    "keyDistinction": "弹幕 ≠ 揭晓证据。弹幕是观众评论（二手转述，可能错或提前），只能作为被过滤对象；揭晓时间必须由带时间字幕的台词推导。两者不可互相替代。",
+    "recommendation": "先做 2 部，且按用户要求收敛到**短片**：魔法少女小圆(9717, 12集) 与 奇巧计程车(325285, 13集)。完整短片清单（85 部 ≤14 集且评分 ≥8.0）与逐部弹幕实测见 shortSeriesMeasurement；补 DanDanPlay 凭据可同时改善覆盖率与真机可验证性；暂不扩展到 10 部——当前瓶颈是素材（带时间字幕），不是作品数量"
+  },
+  "shortSeriesMeasurement": {
+    "status": "STATIC_EVIDENCE",
+    "doc": "docs/SHORT_SERIES_MEASUREMENT.md",
+    "rawData": "docs/evidence/short_series_shortlist.json",
+    "tools": ["tools/short_series_shortlist.js", "tools/dandanplay.js"],
+    "userConstraint": "用户决定：先只做集数少的作品（≤14 集），凭据由用户补充",
+    "pool": {"file": "docs/evidence/bangumi_candidates_6_8-9_9.json", "total": 500, "shortWorksAtLeast80": 85, "criteria": "platform=TV, eps<=14, score>=8.0"},
+    "measured": [
+      {"id": 9717, "title": "魔法少女小圆", "eps": 12, "score": 8.6, "animekoEpisodesWithDanmaku": "4/4", "animekoPerEpisode": 19.5},
+      {"id": 263750, "title": "进击的巨人 第三季 Part.2", "eps": 10, "score": 8.7, "animekoEpisodesWithDanmaku": "2/4", "animekoPerEpisode": 7.3},
+      {"id": 325285, "title": "奇巧计程车", "eps": 13, "score": 8.5, "animekoEpisodesWithDanmaku": "4/4", "animekoPerEpisode": 5.0},
+      {"id": 152091, "title": "吹响吧！上低音号 第二季", "eps": 13, "score": 8.5, "animekoEpisodesWithDanmaku": "4/4", "animekoPerEpisode": 2.0},
+      {"id": 518519, "title": "航海王：粉丝来信", "eps": 1, "score": 8.6, "animekoEpisodesWithDanmaku": "1/1", "animekoPerEpisode": 2.0},
+      {"id": 93739, "title": "乒乓", "eps": 11, "score": 8.7, "animekoEpisodesWithDanmaku": "1/4", "animekoPerEpisode": 0.5},
+      {"id": 4019, "title": "四叠半神话大系", "eps": 11, "score": 8.6, "animekoEpisodesWithDanmaku": "2/4", "animekoPerEpisode": 0.5},
+      {"id": 146457, "title": "瑞克和莫蒂 第三季", "eps": 10, "score": 8.5, "animekoEpisodesWithDanmaku": "2/4", "animekoPerEpisode": 0.5},
+      {"id": 1270, "title": "水星领航员 第三季", "eps": 13, "score": 8.7, "animekoEpisodesWithDanmaku": "0/4", "animekoPerEpisode": 0},
+      {"id": 92705, "title": "虫师 续章", "eps": 10, "score": 8.5, "animekoEpisodesWithDanmaku": "0/4", "animekoPerEpisode": 0},
+      {"id": 106207, "title": "虫师 续章 第2部分", "eps": 10, "score": 8.6, "animekoEpisodesWithDanmaku": "0/4", "animekoPerEpisode": 0},
+      {"id": 848, "title": "蜂蜜与四叶草 II", "eps": 12, "score": 8.5, "animekoEpisodesWithDanmaku": "0/4", "animekoPerEpisode": 0}
+    ],
+    "conclusion": "Animeko 自有弹幕源覆盖率极低（12 部短片中 4 部抽样四集全为 0 条，最高者也仅 19.5 条/集）。真实一集通常数百至数千条，因此只靠该源拦截几乎无事可做、真机也观察不到差异。真实可用性取决于 DanDanPlay 聚合源，而它需凭据。",
+    "recommendedPick": [
+      {"rank": 1, "id": 9717, "title": "魔法少女小圆", "reason": "短片 + 本批弹幕最多 + 第 3 集是公认叙事转折点，第 1 集片头就存在指向性弹幕，适合验证'早于揭晓就拦'"},
+      {"rank": 2, "id": 325285, "title": "奇巧计程车", "reason": "短片 + 弹幕 4/4 有 + 核心身份到第 13 集才揭晓，揭晓时刻明确可指到台词"}
+    ],
+    "unitVerification": {
+      "question": "danmaku-cn.myani.org 的 danmakuInfo.playTime 是秒还是毫秒？",
+      "answer": "毫秒。实测 0/32531/192727/1294158 对应 0s/32.5s/3m12s/21m34s，与片长一致",
+      "crossCheck": "AniDanmakuProvider.kt:58 把 playTime 原样透传给 DanmakuContent.playTimeMillis；客户端模型 AniDanmakuInfo.playTime 声明为 kotlin.Long。无单位换算，因此测量脚本与 App 解释一致",
+      "status": "STATIC_EVIDENCE"
+    },
+    "dandanplaySigning": {
+      "algorithm": "X-Signature = base64( sha256( appId + timestamp + encodedPath + appSecret ) )，encodedPath 不含 query string",
+      "sourceOfTruth": "danmaku/dandanplay/src/commonMain/kotlin/DandanplayClient.kt:56-67",
+      "implementedIn": "tools/dandanplay.js",
+      "episodeIdCaveat": "DanDanPlay 的 episodeId 不是 Bangumi 章节 id，必须先经 /api/v2/bangumi/bgmtv/{subjectId} 取映射",
+      "unmeasuredIsNotZero": "凭据缺失时一律记 UNMEASURED，不记 0",
+      "status": "IMPLEMENTED"
+    },
+    "upstreamFinding": {
+      "what": "DandanplayEpisode.shift（danmaku/dandanplay/.../data/MatchVideo.kt:74）是'该源弹幕应整体提前/延后多少秒'（负值表示提前），上游从不使用它",
+      "relevance": "本项目的 TimeAlignment 处理同一问题，但目前只能靠人工生成的对齐文件；这个现成的每源偏移**未接入**",
+      "status": "STATIC_EVIDENCE__NOT_INTEGRATED"
+    },
+    "subtitleBottleneck": "带时间字幕仍需用户提供。若只能提供英文字幕，则应改选欧美短片（候选池中有瑞克和莫蒂 S3、马男波杰克 6 下、探险活宝 S9、克隆人战争 S7）——本流程只做'引文是否出现在字幕里'的定位，不做跨语言推理，因此不受影响"
+  },
+  "g0Verification": {
+    "status": "STATIC_EVIDENCE",
+    "evidence": "docs/evidence/g0_independent_identity_apk_verify.txt",
+    "tools": ["tools/apk_inspect.js", "tools/apk_find_strings.js"],
+    "whyIndependentOfTheBuildLog": "“构建成功”只证明构建跑完了。G0 的独立 applicationId 与自有签名，以及“新增界面文案真的进包”，都是关于**产物**的断言，因此必须从产物本身读出来。",
+    "upstreamDiffSurface": {
+      "head": "28ec14aca0a2b001f2ce1f6dd1b68acd44a14f67 (equals the locked commit; not moved)",
+      "modifiedTrackedFiles": 12,
+      "deletedLines": 5,
+      "deletedLinesAudited": [
+        "app/shared/build.gradle.kts: 一个空行（空行重排）",
+        "EpisodeViewModel.kt: danmakuList.map {...} 两行，为加 if/else 分支而重写；关闭守卫时走原本逻辑，行为不变",
+        "EpisodeVideoSideSheet.kt: useThinSlider: Boolean = true，重写为带尾逗号的参数列表，默认值不变"
+      ],
+      "conclusion": "没有任何上游既有逻辑被删除或改写语义；改动是“新增参数 + 新增分支 + 新增文件”",
+      "method": "git diff --name-status HEAD / --numstat HEAD / 逐条查看删除行上下文"
+    },
+    "apkIdentity": {
+      "bytes": 78296527,
+      "sha256": "11c57a5aacd2de4b6e8bca336be14ffa8a8d84890d92bc5beea886af6c0413a5",
+      "package": "me.him188.ani.localguard",
+      "upstreamPackage": "me.him188.ani",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "minSdk": 27,
+      "targetSdk": 37,
+      "signingSchemes": ["v2"],
+      "signingVerifiedBy": "apksigner verify --verbose => 'Verifies', v1=false, v2=true, v3=false, Number of signers: 1",
+      "signerCertDN": "C=US, O=Android, CN=Android Debug",
+      "signerCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "metaInfRsa": "META-INF 下不存在 *.RSA/*.EC/*.DSA（1527 个条目逐一列出核对），与 v1=false 一致",
+      "independenceArgument": "包名不同 + 签名密钥不同，两道机制共同保证**无法覆盖安装**官方 Animeko。这也是“不改手机原版 Animeko”这条约束在机制上的保证，而不是靠操作者小心。",
+      "zipEntries": 1527, "zip64": false, "dexCount": 28, "nativeAbis": ["arm64-v8a"],
+      "assetsCount": 199, "assetsStoryCount": 0
+    },
+    "packagedStringsVerified": {
+      "method": "解码 resources.arsc 的值字符串池后按文本搜索（tools/apk_find_strings.js）",
+      "found": ["本地弹幕过滤（非官方）", "启用本地弹幕过滤", "嚴格程度", "僅逐條統計（不含彈幕正文、不含劇情資訊）…"],
+      "localeCoverage": "7 个 values* 目录（values, values-zh, -zh-rCN, -zh-rHK, -zh-rMO, -zh-rSG, -zh-rTW）各恰好 11 个 localguard_* 键，无缺失翻译",
+      "toolPitfall": "`aapt2 dump strings` 列出的是**文件名**字符串池（res/anim/*.xml 等），不是资源表的值池，按文案搜索它永远搜不到，会得到假阴性。必须解码 resources.arsc。"
+    },
+    "ownSigningKeystore": {
+      "status": "IMPLEMENTED + VERIFIED",
+      "path": "keystore/animekolocalguard-release.jks",
+      "format": "PKCS12",
+      "alias": "animekolocalguard",
+      "keyAlgorithm": "RSA 4096 / SHA384withRSA",
+      "validityDays": 10950,
+      "certDN": "CN=AnimekoLocalGuard Local Test Key, OU=local-only, O=AnimekoLocalGuard, L=-, ST=-, C=CN",
+      "certSha256": "f92b10785d236e5e28e3d510f13b3ce43285f76201337172e6d4482441c626be",
+      "debugKeyCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "certDiffersFromDebugKey": true,
+      "generator": "tools/make_release_keystore.ps1",
+      "whyItDiffersFromDebug": "同 DN “CN=Android Debug” 的不同 debug 密钥库仍算出**相同**指纹（实测），因此不能靠 DN 区分；必须比 SHA-256 指纹。这一条正是“自有签名”与“借用 debug 签名”的分界。",
+      "credentialsLocation": "local.properties（已在 .gitignore 中；密码不写入任何文档或仓库文件）",
+      "gitignoreHardened": "本轮在 .gitignore 新增 /keystore/ 与 *.jks / *.keystore —— 提交签名材料会让任何人都能签出貌似来自本项目的包",
+      "backupRequired": "用户必须自行备份 keystore 与密码；丢失后无法再对已安装版本发升级包",
+      "buildWiring": "无需改构建脚本：app/android/build.gradle.kts 已在上游提供参数化的 release signingConfig（signing_release_storeFileFromRoot 等四个属性），本项目的 getProperty 会回落到 local.properties"
+    }
+  },
+  "artifacts": {
+    "apkBaseline": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-universal-arm64.apk",
+      "bytes": 72870428,
+      "sha256": "46700814c4e0c536aee18a54c5185a2765aa78d0400abc7227a21277b7b75b4f",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "dexCount": 28,
+      "nativeLibCount": 22,
+      "zipEntries": 1527,
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "signingNote": "本地生成的测试 debug 密钥库，非官方 Animeko 签名密钥，仅用于本地受控测试",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_g0.txt", "docs/evidence/apk_report.json"],
+      "reproduceWith": "tools/build_android.ps1",
+      "caveat": "BUILT 仅代表编译打包成功，不代表播放可用，也不代表接入验证"
+    },
+    "apkArm64Split": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-arm64-v8a.apk",
+      "bytes": 72870428,
+      "sha256": "46700814c4e0c536aee18a54c5185a2765aa78d0400abc7227a21277b7b75b4f",
+      "note": "只配置了 arm64-v8a，因此与 universal 包含相同内容、字节相同",
+      "status": "BUILT"
+    },
+    "apkWithGuardHook": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-with-guard-hook.apk",
+      "bytes": 75187659,
+      "sha256": "d10e4691d719163f56f268d308d1916fc6abd201cae08d28303444b7785019ba",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_g1_integration.txt"],
+      "whatIsIntegrated": "EpisodeViewModel.uiDanmakuEventFlow 调用 DanmakuGuardSession.shouldDisplay；Add 与 Repopulate 两条路径都经过判定",
+      "caveat": "BUILT 只代表编译通过。总开关默认关闭；knowledge pack 为 null、semanticsProvider 返回 null，因此即使打开开关也不会屏蔽任何弹幕。过滤是否真正生效需真机验证，尚未执行。",
+      "upstreamDiff": "+133 insertions, 0 deletions（纯新增，未破坏上游既有逻辑）"
+    },
+    "apkWithGuardUi": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-with-guard-ui.apk",
+      "bytes": 72972444,
+      "sha256": "983fae1caaba428430684f7d663e1a07cd6d1fec9508b6d3851ab3c4f23d8639",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_ui.txt"],
+      "whatIsIntegrated": "在上一版基础上新增：播放页弹幕设置内的本地过滤分组（开关/三档/状态行）、配置持久化、状态快照",
+      "verifiedInApk": [
+        "aapt2 dump packagename => me.him188.ani.localguard",
+        "apksigner verify --print-certs => 本地测试 debug 证书（非官方密钥）",
+        "aapt2 dump strings 中确实包含新增界面文案（中英文）"
+      ],
+      "caveat": "BUILT 只代表编译打包成功。knowledge 仍为 null、semanticsProvider 仍返回 null，因此即使打开开关也不会屏蔽任何弹幕；界面行为需真机验证"
+    },
+    "apkWithGuardCache": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-with-cache.apk",
+      "bytes": 75308038,
+      "sha256": "2e46c257ed66e6510e59343f0488c6e62d849cf3a6dbf6a50e2417da4d7c9818",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_cache.txt"],
+      "whatIsIntegrated": "在上一版基础上把语义缓存真正接入生产路径（两级分层、切集只清事实关系层、EpisodeViewModel 同寿命创建缓存）",
+      "apkSizeNote": "文件字节比上一版大 2.34MB，但 1527 个 ZIP 条目的 CRC32 逐个比对 0 个不同、压缩后总量仅差 1353 字节：差异在 APK 签名块。**不能用 APK 文件大小推断代码增量。**",
+      "caveat": "BUILT 只代表编译打包成功。semanticsProvider 仍返回 null，缓存中不会有条目，播放行为与上一版完全相同；缓存正确性目前只由单测保证，未测量性能收益"
+    },
+    "apkG1Complete": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-g1-complete.apk",
+      "bytes": 75308863,
+      "sha256": "944930e9e741c23571dd17d14abf6919d21a91750e683f1d5a5ad55c7b0b72f2",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_g1_complete.txt"],
+      "whatIsIntegrated": "G1 五项交付全部落地：三档策略、揭晓时间线、错误状态（含分析失败）、缓存隔离（两级分层已接入）、可关闭开关（界面+持久化）",
+      "verifiedInApk": [
+        "aapt2 dump packagename => me.him188.ani.localguard",
+        "apksigner verify --print-certs => 本地测试 debug 证书（非官方密钥）"
+      ],
+      "caveat": "BUILT 只代表编译打包成功。semanticsProvider 仍返回 null（无模型），因此打开开关不会屏蔽任何弹幕；真机验证未做；性能未测量"
+    },
+    "apkAllEntrances": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-all-entrances.apk",
+      "bytes": 75309399,
+      "sha256": "1c861dcc46461da456665c489e8d166222957d8e0b7c1c394508bce3b32a2363",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/INTEGRATION.md §9.4", "docs/evidence/build_success_guard_g1_complete.txt"],
+      "whatIsIntegrated": "把第二个真实文字显示入口（弹幕列表 allDanmakuListFlow）也接上守卫；判定位置用当前播放位置而非条目自带时间",
+      "reproducibilityNote": "**修正**：曾记录本 APK 与只跑测试任务产出的 APK“字节完全相同”。该结论错误——当时的比对依赖 .NET ZipArchive 的 Crc32 属性，而它对 ZIP64 条目返回不可靠的值（两个大小不同的条目报出相同 CRC），因此那次比对无效。正确做法是按条目取出字节后比 SHA-256。目前**没有任何构建字节级可复现的证据**；DEX 在各次构建之间存在正常差异（classes13.dex 等），体积也不稳定。诊断 APK 不能靠 CRC 属性。",
+      "caveat": "BUILT 只代表编译打包成功。semanticsProvider 仍返回 null，打开开关不会屏蔽任何弹幕；真机验证未做；列表过滤性能未测量"
+    },
+    "apkKnowledgeReady": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-knowledge-ready.apk",
+      "bytes": 73003828,
+      "sha256": "d6b8940a39ce559f385ffa235a2d882bc1efe9094f7151e85847122a6cf3782c",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_knowledge.txt"],
+      "whatIsIntegrated": "剧情包磁盘格式 + 装载链路：EpisodeViewModel 现在把 knowledge/alignment/workId 真实传给 startEpisode；Android 从 APK assets 的 story/ 目录读取",
+      "caveat": "BUILT 只代表编译打包成功。APK 内**没有放置任何剧情包**（assets/story 为空），semanticsProvider 仍返回 null，因此打开开关不会屏蔽任何弹幕"
+    },
+    "apkPackGenerator": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-pack-generator.apk",
+      "bytes": 74160278,
+      "sha256": "ac422c3e76a5dce6a74b5de5335673c59740ec50965574920f326d10b490c93c",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_pack_generator.txt"],
+      "whatIsIntegrated": "新增剧情包生成流程（声明 + 带时间字幕 → 校验过的包）；APK 行为与上一版相同（生成器在模块内，不在运行路径上）",
+      "caveat": "BUILT 只代表编译打包成功。assets/story 为空、semanticsProvider 返回 null，打开开关不会屏蔽任何弹幕"
+    },
+    "apkAlignmentTool": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-alignment-tool.apk",
+      "bytes": 74170140,
+      "sha256": "4a742c4ad311dae2cc3e556ca7170e4c6ee4a58e35f27f720dee1dce49f9ba5a",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_alignment_tool.txt"],
+      "whatIsIntegrated": "新增片源对齐生成（按台词配对两版字幕 → 常量偏移或分段映射，拟合不到就拒绝）；APK 运行行为与上一版相同",
+      "caveat": "BUILT 只代表编译打包成功。assets/story 为空、semanticsProvider 返回 null，打开开关不会屏蔽任何弹幕"
+    },
+    "apkStatusDerived": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-status-derived.apk",
+      "bytes": 75397371,
+      "sha256": "3d5336b0b6c02683cf4507c516138cc88448d84934b04278f409d6bcf53bc87e",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_status_derived.txt"],
+      "whatIsIntegrated": "能力状态改为推导：安装过提供者即 semanticsReady、观察到分析失败即 modelFailed（缓存命中路径也更新、一次成功会清除）；三档补上两两可区分断言",
+      "caveat": "BUILT 只代表编译打包成功。assets/story 为空、未安装真实语义提供者，界面正确显示“未接入模型”，打开开关不会屏蔽任何弹幕；新增的故障状态推导本身也只在单测里被触发过"
+    },
+    "apkValidatedLoad": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-validated-load.apk",
+      "bytes": 75397371,
+      "sha256": "0c71d2250771eeec5db1dfec8b86c4fe9c5471aa5ebec8e5b4781d38fdb45721",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "signingCertDN": "C=US, O=Android, CN=Android Debug",
+      "signingCertSha256": "966fba3c39027a882bee7949cb3422e8b9328747a9f1a8998f85d9c3595851c0",
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_validated_load.txt"],
+      "whatIsIntegrated": "装载路径现在真的跑结构校验（结构错误拒绝、证据问题只记录）；新增端到端管线测试覆盖 字幕→包→落盘→装载→对齐→判定",
+      "caveat": "BUILT 只代表编译打包成功。assets/story 为空、未安装真实语义提供者，打开开关不会屏蔽任何弹幕"
+    },
+    "apkEpisodeOrderAdapter": {
+      "path": "artifacts/animekolocalguard-v4.9.0-dev-debug-episode-order.apk",
+      "bytes": 78296527,
+      "sha256": "11c57a5aacd2de4b6e8bca336be14ffa8a8d84890d92bc5beea886af6c0413a5",
+      "applicationId": "me.him188.ani.localguard",
+      "versionCode": 50406,
+      "versionName": "4.9.0-dev",
+      "abis": ["arm64-v8a"],
+      "status": "BUILT",
+      "evidence": ["docs/evidence/build_success_guard_episode_order.txt"],
+      "whatIsIntegrated": "把上游集序 → 知识库集序的适配层真正接进 EpisodeViewModel（此前 EpisodeOrderMapper 只有测试在用，生产路径直接读 ep/sort 的数值）",
+      "sizeNote": "与上一版 diagnostics.apk 同为 78296527 字节。**不能用文件大小判断代码是否变化**——上一版就被证明过大小相同而内容不同；且本轮未做任何字节级可复现性验证。",
+      "caveat": "BUILT 只代表编译打包成功。assets/story 为空、semanticsProvider 返回 null，打开开关不会屏蔽任何弹幕；适配层只由单测覆盖，未经真实条目验证"
+    },
+    "apkWithGuard": {"path": null, "sha256": null, "status": "NOT_STARTED", "note": "带真实知识库+模型的版本，G2/G3 范围"},
+    "knowledgePack": {"path": null, "status": "NOT_STARTED", "note": "G2 范围"},
+    "model": {"path": null, "status": "NOT_STARTED", "note": "G3 范围"}
+  },
+  "buildEnvironmentWorkarounds": {
+    "note": "本机必需的绕行项，逐条记录原因；均已写入 tools/build_android.ps1 注释。换机器时需重新评估。",
+    "items": [
+      {"id": "W1", "what": "构建统一经盘符根 ASCII junction 进行: D:\\alrepo -> 仓库, D:\\al-tools -> .tools", "why": "两个独立原因：(a) AGP 拒绝非 ASCII 项目路径；(b) Gradle 9.3.1 把测试 worker 的 classpath 写进 @argfile，路径含非 ASCII 字符时该 argfile 解析不到 gradle-worker.jar，worker 启动即报 ClassNotFoundException: worker.org.gradle.process.internal.worker.GradleWorkerMain，且控制台只显示 'Test process encountered an unexpected problem'，不产出任何测试结果，极易误判为代码缺陷。junction 不复制文件，仓库仍是同一物理目录，删除即还原。", "removable": "工作区迁移到纯 ASCII 路径后（或 Gradle 不再使用 @argfile 传递 worker classpath）"},
+      {"id": "W2", "what": "GRADLE_USER_HOME 指向 D 盘项目内目录", "why": "C 盘空间紧张；避免写系统用户目录", "removable": "换机器"},
+      {"id": "W3", "what": "在 <GRADLE_USER_HOME>/gradle.properties 配置 systemProp.* 代理", "why": "本机直连 dl.google.com / repo.maven.apache.org 超时；Gradle daemon 不使用 Windows 系统代理", "removable": "直连可用时"},
+      {"id": "W4", "what": "ANDROID_USER_HOME 指向可写目录，并放入本地生成的 debug.keystore", "why": "AGP 需在 <user>\\.android\\ 写 debug.keystore 与 .lock，该目录在此不可写", "removable": "该目录可写时"},
+      {"id": "W5", "what": "local.properties 把 jvm.toolchain.vendor 置空", "why": "上游要求 JBR(vendor=jetbrains)，本机 DNS 无法解析 cache-redirector.jetbrains.com 与 *.cloudfront.net；上游 CI 的下载脚本会关闭 TLS 校验，本项目禁止", "removable": "取得 JBR 21 后"},
+      {"id": "W6", "what": "手动补 platforms/android-37.0/package.xml，并把 build-tools 目录改名为 36.0.0", "why": "sdkmanager 不可用，改为手动解压安装；AGP 靠 package.xml 与目录名识别组件", "removable": "能用 sdkmanager 安装时"}
+    ]
+  },
+  "blockers": [
+    {"id": "B1", "desc": "设备未连接，无法核对手机实际 Animeko 版本", "severity": "medium", "unblocksBy": "用户连接设备"},
+    {"id": "B2", "desc": "缺 dandanplay 凭据", "severity": "low", "unblocksBy": "用户提供；官方称不影响构建"},
+    {"id": "B3", "desc": "缺 app/android/google-services.json", "severity": "unknown", "unblocksBy": "构建推进到该步骤后确认"},
+    {"id": "B4", "desc": "C 盘 12.1GB 偏紧", "severity": "low", "unblocksBy": "缓存已重定向到 D 盘（现约1.28GB）"},
+    {"id": "B5", "desc": "sdkmanager 报 Failed to create bin dir: 拒绝访问", "severity": "resolved", "unblocksBy": "改为手动安装 SDK 组件"},
+    {"id": "B6", "desc": "JBR 21（vendor=jetbrains，需 JCEF）无法取得：*.cloudfront.net 与 cache-redirector.jetbrains.com DNS 不可解析；上游 CI 的 download_jbr.py 会关闭 TLS 校验，本项目禁止使用", "severity": "resolved", "unblocksBy": "local.properties 中把 jvm.toolchain.vendor 置空，改用本地 Temurin 21（toolchain 已通过）"},
+    {"id": "B8", "desc": "AGP 拒绝非 ASCII 项目路径（工作区为 D:\\模型\\...）", "severity": "resolved", "unblocksBy": "在盘符根建立 ASCII junction D:\\alrepo 并从该路径构建；已成功产出 APK 并通过上游 Gradle 测试任务。长期正解仍是迁移工作区"},
+    {"id": "B9", "desc": "上游 Gradle 测试任务在本机静默失败（worker 启动即退出，无任何测试结果）", "severity": "resolved", "unblocksBy": "根因是 worker classpath @argfile 中的非 ASCII 路径；改用 ASCII junction 后 :danmaku:localguard:testAndroidHostTest 通过 116/116。证据: docs/evidence/gradle_unit_tests_g0_g1.txt"},
+    {"id": "B7", "desc": "无 Android 设备/模拟器镜像，无法做真机显示前拦截验证", "severity": "medium", "unblocksBy": "用户连接设备"}
+  ],
+  "buildAttempts": {
+    "count": 9,
+    "evidenceDir": "docs/evidence/",
+    "files": ["build_attempt1.txt", "build_attempt2.txt", "build_attempt3.txt", "build_attempt4.txt", "build_attempt5.txt", "build_attempt6.txt", "build_attempt7.txt", "build_attempt8.txt", "build_attempt9.txt"],
+    "furthestProgress": {
+      "attempt": 7,
+      "result": ":build-logic 编译成功（含 compilePluginsBlocks / pluginDescriptors / processResources / generatePrecompiledScriptPluginAccessors），随后被 AGP 非 ASCII 路径检查阻断",
+      "elapsedMinutes": 9.2,
+      "gradleHomeSizeMB": 1283
+    },
+    "rootCauseChain": [
+      "attempt1: toolchain 要求 JDK21 vendor=jetbrains，本机只有 Temurin17 → 下载 Temurin21",
+      "attempt2-6: vendor/路径注册问题，逐步排查（probe 确认 -D 属性已到达 JVM）",
+      "attempt7: local.properties 把 vendor 置空 → toolchain 通过，build-logic 编译成功",
+      "attempt8-9: AGP 报 'Your project path contains non-ASCII characters'，overridePathCheck 在 included build 中未生效"
+    ]
+  },
+  "localModificationsToUpstream": [
+    {"file": "settings.gradle.kts", "change": "+1 line includeProject(\":danmaku:localguard\")", "nature": "new module registration"},
+    {"file": "gradle.properties", "change": "+org.gradle.java.installations.paths (ASCII junction path), +android.overridePathCheck=true (with comments marking them as machine-local)", "nature": "machine-local env settings, NOT feature changes"},
+    {"file": "local.properties", "change": "new (gitignored): applicationIdSuffix, abis, jvm.toolchain.vendor= (empty), jvm.toolchain.version=21", "nature": "machine-local config"},
+    {"file": "danmaku/localguard/**", "change": "new module (sources + tests + devrun runner)", "nature": "project addition"},
+    {"file": "app/shared/build.gradle.kts", "change": "+1 line api(projects.danmaku.localguard)", "nature": "new module dependency"},
+    {"file": "app/shared/src/commonMain/kotlin/data/repository/danmaku/GuardConfigRepository.kt", "change": "new file: persisted guard config (two preference keys)", "nature": "feature addition"},
+    {"file": "app/shared/src/commonMain/kotlin/data/repository/danmaku/LocalGuardEpisodeOrder.kt", "change": "new file: upstream EpisodeSort -> guard EpisodeOrder adapter (ep wins over sort; specials need explicit mapping)", "nature": "feature addition"},
+    {"file": "app/shared/src/commonTest/kotlin/data/repository/danmaku/LocalGuardEpisodeOrderTest.kt", "change": "new file: 16 cases covering every upstream EpisodeSort shape", "nature": "test addition"},
+    {"file": "app/shared/src/commonMain/kotlin/ui/subject/episode/EpisodeViewModel.kt", "change": "+guard hook in uiDanmakuEventFlow (previously +133 lines, 0 deletions); now also injects the config source and exposes localGuardStatusFlow + setters", "nature": "feature integration"},
+    {"file": "app/shared/src/commonMain/kotlin/ui/subject/episode/video/settings/EpisodeVideoSettings.kt", "change": "+local guard settings group; ViewModel injects GuardConfigRepository", "nature": "feature addition"},
+    {"file": "app/shared/src/commonMain/kotlin/ui/subject/episode/video/components/EpisodeVideoSideSheet.kt", "change": "+optional localGuardStatus parameter", "nature": "feature integration"},
+    {"file": "app/shared/src/commonMain/kotlin/ui/subject/episode/EpisodePage.kt", "change": "+collect localGuardStatusFlow and pass it to the settings sheet", "nature": "feature integration"},
+    {"file": "app/shared/application/src/commonMain/kotlin/platform/CommonKoinModule.kt", "change": "+1 singleton registration", "nature": "wiring"},
+    {"file": "app/shared/app-lang/src/androidMain/res/values*/strings.xml", "change": "+9 strings x 4 locales", "nature": "localization"},
+    {"file": "docs/**, PROGRESS.md, NEXT.md, STATE.json, tools/**", "change": "new", "nature": "project docs and tooling"}
+  ],
+  "notDone": [
+    "G1 完成标志的后半：真实条目显示前受控 + 真机验证",
+    "把总开关与状态暴露到界面（目前开关仅存在于代码中，用户无法切换）",
+    "G2 两部真实作品时间线闭环",
+    "G3 手机本地 AI 模型",
+    "预审注释、缓存分层、调度与性能预算实现"
+  ],
+  "honestyRules": [
+    "单测通过只代表当时测试范围",
+    "本次全部测试使用虚构剧情与规则标签，不代表任何真实作品或模型效果",
+    "MOCK/合成数据不能作为 Animeko 接入或 AI 效果证据",
+    "未测量就写未测量，不写零延迟/零耗电/绝不闪退",
+    "纯编译成功不等于播放成功",
+    "STANDALONE_POLICY_TESTS 通过不等于上游 Gradle 构建通过",
+    "不伪造审核者、样本数、证据或执行记录"
+  ]
+}

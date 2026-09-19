@@ -1,0 +1,288 @@
+/*
+ * Copyright (C) 2024-2026 OpenAni and contributors.
+ *
+ * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
+ * Use of this source code is governed by the GNU AGPLv3 license, which can be found at the following link.
+ *
+ * https://github.com/open-ani/ani/blob/main/LICENSE
+ */
+
+@file:Suppress("UnstableApiUsage")
+
+import com.android.build.gradle.ProguardFiles.getDefaultProguardFile
+
+
+plugins {
+    id("ani.kmp-compose")
+    // 注意! 前几个插件顺序非常重要, 调整后可能导致 compose multiplatform resources 生成错误
+
+    alias(libs.plugins.kotlin.plugin.serialization)
+
+    // alias(libs.plugins.kotlinx.atomicfu)
+    alias(libs.plugins.sentry.kotlin.multiplatform)
+    alias(libs.plugins.aboutlibraries)
+    idea
+}
+
+//atomicfu {
+//    transformJvm = false // 这东西很不靠谱, 等 atomicfu 正式版了可能可以考虑下
+//}
+
+val enableIosFramework = enableIos && buildIosFramework
+
+kotlin {
+    android {
+        namespace = "me.him188.ani"
+        compileSdk = getIntProperty("android.compile.sdk")
+        minSdk = getIntProperty("android.min.sdk")
+        // TODO AGP Migration: Test package optimization
+
+        optimization {
+            minify = false
+            keepRules.apply {
+                files(
+                    getDefaultProguardFile("proguard-android-optimize.txt", layout.buildDirectory),
+                    *sharedAndroidProguardRules(),
+                )
+            }
+        }
+
+    }
+
+    sourceSets.commonMain.dependencies {
+        api(projects.utils.platform)
+        api(projects.utils.intellijAnnotations)
+        api(libs.kotlinx.coroutines.core)
+        api(libs.kotlinx.serialization.json)
+        api(libs.kotlinx.serialization.json.io)
+        api(libs.kotlinx.serialization.protobuf)
+        implementation(libs.atomicfu) // room runtime
+        api(libs.kotlinx.datetime)
+        api(libs.kotlinx.io.core)
+        api(libs.kotlinx.collections.immutable)
+        api(projects.utils.ktorClient)
+
+        api(projects.app.shared.appPlatform)
+        api(projects.app.shared.appData)
+        api(projects.app.shared.placeholder)
+        api(projects.app.shared.uiFoundation)
+        api(projects.app.shared.videoPlayer)
+        api(projects.app.shared.videoPlayer.torrentSource)
+        api(projects.app.shared.uiSettings)
+        api(projects.app.shared.uiExploration)
+        api(projects.app.shared.uiSubject)
+        api(projects.app.shared.uiDownload)
+        api(projects.app.shared.uiAdaptive)
+        api(projects.app.shared.uiOnboarding)
+        api(projects.app.shared.uiEpisode)
+        api(projects.app.shared.uiMediaselect)
+        api(projects.app.shared.uiExprovider)
+        api(projects.app.shared.uiWatchtogether)
+
+        // Compose
+        api(libs.compose.lifecycle.viewmodel.compose)
+        api(libs.compose.lifecycle.runtime.compose)
+        api(libs.compose.navigation.compose)
+        api(libs.compose.navigation.runtime)
+        api(libs.compose.navigation3.runtime)
+        api(libs.compose.navigation3.ui)
+        api(libs.compose.lifecycle.viewmodel.navigation3)
+        api(libs.compose.material3.adaptive.navigation.suite)
+        implementation(libs.compose.components.resources)
+        implementation(projects.app.shared.reorderable)
+
+        // Data sources
+        api(projects.datasource.datasourceApi)
+        api(projects.datasource.datasourceCore)
+        api(projects.datasource.bangumi)
+        api(projects.datasource.mikan)
+
+        api(projects.client)
+        api(projects.utils.logging)
+        api(projects.utils.coroutines)
+        api(projects.utils.io)
+        api(projects.utils.xml)
+        api(projects.utils.bbcode)
+        api(projects.danmaku.danmakuApi)
+        api(projects.danmaku.dandanplay)
+        api(projects.danmaku.danmakuUi)
+        // AnimekoLocalGuard: 本地弹幕过滤（非官方新增模块）
+        api(projects.danmaku.localguard)
+        api(projects.utils.ipParser)
+        api(projects.torrent.torrentApi)
+        api(projects.torrent.anitorrent)
+
+        // Ktor
+        api(libs.ktor.client.websockets)
+        api(libs.ktor.client.logging)
+        api(libs.ktor.client.content.negotiation)
+        api(libs.ktor.serialization.kotlinx.json)
+
+        // Others
+        api(libs.koin.core)
+        implementation(libs.constraintlayout.compose)
+    }
+
+    // shared by android and desktop
+    sourceSets.jvmMain.dependencies {
+        // TODO: to be commonized
+        api(projects.datasource.dmhy)
+        api(projects.datasource.jellyfin)
+        api(projects.datasource.ikaros)
+
+        implementation(libs.jna)
+        implementation(libs.slf4j.api)
+        api(libs.ktor.client.okhttp)
+    }
+    sourceSets.commonTest.dependencies {
+        implementation(libs.kotlinx.coroutines.test)
+        implementation(projects.utils.testing)
+        implementation(projects.utils.uiTesting)
+        implementation(libs.turbine)
+    }
+
+    sourceSets.androidMain.dependencies {
+        api(libs.kotlinx.coroutines.android)
+        api(libs.datastore)
+        api(libs.datastore.preferences)
+        api(libs.androidx.appcompat)
+        api(libs.androidx.media)
+        api(libs.androidx.core.ktx)
+        api(libs.androidx.activity.compose)
+        api(libs.androidx.activity.ktx)
+        api(libs.koin.android)
+        implementation(libs.androidx.browser)
+        api(libs.logback.android)
+        api(projects.utils.buildConfig)
+    }
+
+    // androidUnitTest is apart from the commonTest tree so we have to do it again
+    sourceSets.androidHostTest.dependencies {
+        implementation(libs.kotlinx.coroutines.test)
+        implementation(projects.utils.testing)
+        implementation(projects.utils.uiTesting)
+        implementation(libs.turbine)
+        implementation(libs.mockito)
+        implementation(libs.mockito.kotlin)
+        implementation(libs.koin.test)
+    }
+
+    sourceSets.nativeMain.dependencies {
+        implementation(libs.stately.common) // fixes koin bug
+    }
+
+    sourceSets.desktopMain.dependencies {
+        api(compose.desktop.currentOs) {
+            exclude("org.jetbrains.compose.material:material") // We use material3
+            exclude("org.jetbrains.compose.ui:ui-tooling-preview")
+        }
+        api(libs.compose.ui.graphics.desktop)
+        api(projects.utils.logging)
+        api(libs.kotlinx.coroutines.swing)
+        implementation(libs.jna)
+
+        // This causes duplicated entry when packaging compose binaries (Task `createDistribution`).
+        // https://youtrack.jetbrains.com/issue/CMP-7734/packageReleaseDmg-for-macOS-arm64-fails-since-1.8.0-alpha04
+//        runtimeOnly(libs.kotlinx.coroutines.debug)
+
+        implementation(libs.log4j.core)
+        implementation(libs.log4j.slf4j.impl)
+
+        implementation(libs.ktor.serialization.kotlinx.json)
+    }
+}
+
+val aboutLibrariesExportedJson = layout.buildDirectory.file("generated/aboutLibrariesExport/aboutlibraries.json")
+val mergeCommonMainComposeResources = tasks.register<Sync>("mergeCommonMainComposeResources") {
+    description = "Merge "
+    from(layout.projectDirectory.dir("src/commonMain/composeResources"))
+    from(aboutLibrariesExportedJson) { into("files") }
+    dependsOn("exportLibraryDefinitions")
+    into(layout.buildDirectory.dir("generated/mergedCommonMainComposeResources"))
+}
+
+compose.resources {
+    // 不能用 "me.him188.ani.app": 资源会打进以包名命名的目录, 目录名以 ".app" 结尾时
+    // App Store 校验会把它当成嵌套 app bundle, 因缺少可执行文件和 Info.plist 拒绝上传
+    // (ITMS-90207 / ITMS-90036).
+    packageOfResClass = "me.him188.ani.app.shared"
+    generateResClass = always
+    // provider 从 merge task 派生, 自动携带任务依赖.
+    customDirectory(
+        "commonMain",
+        mergeCommonMainComposeResources.map {
+            layout.buildDirectory.dir("generated/mergedCommonMainComposeResources").get()
+        },
+    )
+}
+
+aboutLibraries {
+    export {
+        outputFile = aboutLibrariesExportedJson
+        prettyPrint = true
+    }
+    library {
+        // KMP 库会解析出 -jvm/-android 等多个平台构件, 按名字合并成一个条目.
+        duplicationMode = com.mikepenz.aboutlibraries.plugin.DuplicateMode.MERGE
+        duplicationRule = com.mikepenz.aboutlibraries.plugin.DuplicateRule.SIMPLE
+    }
+}
+
+// RESOURCES
+
+idea {
+    val generatedResourcesDir = file("build/generated/compose/resourceGenerator/kotlin")
+    module {
+        generatedSourceDirs.add(generatedResourcesDir.resolve("commonMainResourceAccessors"))
+        generatedSourceDirs.add(generatedResourcesDir.resolve("commonResClass"))
+    }
+}
+
+// AS 问题 since Compose 1.7.0-beta03
+afterEvaluate {
+    tasks.matching { it.name.contains("generateReleaseLintVitalModel") }.configureEach {
+        mustRunAfter("releaseAssetsCopyForAGP")
+    }
+    tasks.matching { it.name.contains("lintVitalAnalyzeRelease") }.configureEach {
+        mustRunAfter("releaseAssetsCopyForAGP")
+    }
+}
+
+
+// BUILD CONFIG
+
+//if (bangumiClientDesktopAppId == null || bangumiClientDesktopSecret == null) {
+//    logger.warn("bangumi.oauth.client.desktop.appId or bangumi.oauth.client.desktop.secret is not set. Bangumi authorization will not work. Get a token from https://bgm.tv/dev/app and set them in local.properties.")
+//}
+
+dependencies {
+}
+
+
+// 太耗内存了, 只能一次跑一个
+// compose bug, 不能用这个 https://youtrack.jetbrains.com/issue/CMP-5835
+//tasks.filter { it.name.contains("link") && it.name.contains("Framework") && it.name.contains("Ios") }
+//    .sorted()
+//    .let { links ->
+//        links.forEachIndexed { index, task ->
+//            for (index1 in (index + 1)..links.lastIndex) {
+//                task.mustRunAfter(links[index1])
+//            }
+//        }
+//    }
+
+if (enableIosFramework) {
+// 太耗内存了, 只能一次跑一个
+//    tasks.named("linkDebugFrameworkIosArm64") {
+//        mustRunAfter("linkReleaseFrameworkIosArm64")
+//        mustRunAfter("linkDebugFrameworkIosSimulatorArm64")
+//        mustRunAfter("linkReleaseFrameworkIosSimulatorArm64")
+//    }
+//    tasks.named("linkReleaseFrameworkIosArm64") {
+//        mustRunAfter("linkDebugFrameworkIosSimulatorArm64")
+//        mustRunAfter("linkReleaseFrameworkIosSimulatorArm64")
+//    }
+//    tasks.named("linkDebugFrameworkIosSimulatorArm64") {
+//        mustRunAfter("linkReleaseFrameworkIosSimulatorArm64")
+//    }
+}

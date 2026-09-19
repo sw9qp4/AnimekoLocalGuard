@@ -1,0 +1,788 @@
+/*
+ * Copyright (C) 2024-2026 OpenAni and contributors.
+ *
+ * 此源代码的使用受 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证的约束, 可以在以下链接找到该许可证.
+ * Use of this source code is governed by the GNU AGPLv3 license, which can be found at the following link.
+ *
+ * https://github.com/open-ani/ani/blob/main/LICENSE
+ */
+
+package me.him188.ani.app.domain.media.selector
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.withContext
+import me.him188.ani.app.data.models.preference.MediaPreference
+import me.him188.ani.app.data.models.preference.MediaPreference.Companion.ANY_FILTER
+import me.him188.ani.app.data.models.preference.MediaSelectorSettings
+import me.him188.ani.app.domain.media.DroppedFileMedia
+import me.him188.ani.app.domain.media.selector.filter.MediaSelectorFilterSortAlgorithm
+import me.him188.ani.datasources.api.Media
+import me.him188.ani.datasources.api.isLocalCache
+import me.him188.ani.datasources.api.source.MediaSourceKind
+import kotlin.coroutines.CoroutineContext
+
+/**
+ * 用于管理一组 [Media]，通过对其进行过滤、应用用户偏好以及上下文信息，
+ * 最终选择出单个 [Media] 资源的选择器接口。
+ *
+ * 本接口主要包含以下三个阶段：
+ * 1. **过滤**：基于 [MediaSelectorSettings] 等信息，产出 [filteredCandidates]（包含排除原因）与
+ *    [filteredCandidatesMedia]（仅保留未被排除的资源）。过滤逻辑常考虑字幕是否存在、完结番是否隐藏单集资源等。
+ * 2. **偏好**：提供 [alliance]、[resolution]、[subtitleLanguageId]、[mediaSourceId] 等偏好项，通过
+ *    [MediaPreferenceItem] 合并用户在本次会话中的设置 [MediaPreferenceItem.userSelected] 与用户在系统设置中配置的全局默认值 [MediaPreferenceItem.defaultSelected]，
+ *    从而进一步缩小为 [preferredCandidates] 和 [preferredCandidatesMedia]。
+ * 3. **选择**：支持手动或自动方式来选中某个 [Media]：
+ *    - 手动调用 [select]。
+ *    - 自动通过 [trySelectDefault]、[trySelectCached] 或 [trySelectFromMediaSources] 等方法完成。
+ *
+ *    最终选定的资源会存入 [selected]，并通过 [events] 广播变更。
+ *
+ * ### 1. 过滤阶段
+ *
+ * - [filteredCandidates]：包含所有被发现的资源，以及若被排除则附带 [MediaExclusionReason]。
+ * - [filteredCandidatesMedia]：仅包含未排除的资源，用于后续处理。
+ *
+ * ### 2. 偏好阶段
+ *
+ * - 偏好项 [alliance]、[resolution]、[subtitleLanguageId]、[mediaSourceId] 分别对应字幕组、分辨率、字幕语言、数据源 ID 等。
+ * - 系统和用户偏好合并后形成最终的可用值，再对 [filteredCandidatesMedia] 做“偏好筛选”，得到更精简的 [preferredCandidates]、[preferredCandidatesMedia]。
+ *
+ * ### 3. 选择阶段
+ *
+ * - [selected]：当前被选中的资源，若尚未选择则为 `null`。
+ * - [select]：手动选择某个 [Media]，并更新相关偏好，触发对应事件。
+ * - [unselect]：清除当前选择。
+ * - [trySelectDefault]：若尚无选择，则基于 [preferredCandidatesMedia] 自动挑选最优资源。
+ * - [trySelectCached]：若本地存在可用缓存且尚未选择，则优先选用缓存资源。
+ * - [trySelectFromMediaSources]：根据给定的数据源优先级或黑名单等信息进行自动选择。
+ *
+ * 在选择时, 会触发 [MediaSelectorEvents.onChangePreference] 和 [MediaSelectorEvents.onSelect] 事件, 事件可用于保存用户偏好等操作.
+ *
+ * ## 数据源阶级
+ *
+ * 每个数据源 [me.him188.ani.datasources.api.source.MediaSource] 都拥有阶级 [me.him188.ani.app.domain.mediasource.codec.MediaSourceTier]. 阶级会影响排序.
+ * 阶级值越低, 数据源排序越靠前.
+ *
+ * 数据源还可以为各个 channel (对应 [me.him188.ani.datasources.api.MediaProperties.alliance]) 单独指定 tier
+ * ([MediaSelectorSourceTiers.channelTiers]). 排序时以资源的有效 tier 为准: channel tier 优先, 没有 channel tier 时使用数据源 tier.
+ * 因此同一个数据源的不同 channel 的资源可以有不同的排序优先级.
+ *
+ * ### 快速选择
+ *
+ * 自动选择由 [MediaAutoSelector] 统一管理决策、阶段与执行循环。
+ * 先等待按番剧记忆的 Web 源；没有可选结果后才开始计时，本地缓存仍可提前选中。
+ * - 第一阶段只接受有效 tier 为 0 的精确匹配资源。
+ * - 到达 [MediaSelectorSettings.fastSelectWebLowTierToleranceDuration]（默认 5 秒）后，
+ *   接受所有 tier 的精确匹配资源，按有效 tier 升序选择。
+ * - 累计 15 秒后允许模糊匹配兜底，但精确匹配始终优先于模糊匹配。
+ * 有效 tier 优先取 channel 配置，再取数据源配置；同匹配等级、同 tier 内才比较偏好。
+ * 全部源提前完成不会跳过截止时间。无限等待不会进入后续降级阶段。
+ *
+ * ## 使用示例
+ *
+ * 以下是一个演示如何观察各 Flow 并进行选择的示例代码（伪代码）：
+ *
+ * ```
+ * suspend fun usageExample(mediaSelector: MediaSelector) {
+ *     // 观察过滤后但包含排除原因的候选
+ *     mediaSelector.filteredCandidates.collect { allCandidates ->
+ *         println("所有候选资源(含排除原因): $allCandidates")
+ *     }
+ *
+ *     // 观察过滤后可用的字幕组选项
+ *     mediaSelector.alliance.available.collect { alliances ->
+ *         println("可选的字幕组列表: $alliances")
+ *     }
+ *
+ *     // 如果尚未选择任何资源，尝试自动选择一个符合当前偏好的资源
+ *     val autoSelected = mediaSelector.trySelectDefault()
+ *     if (autoSelected != null) {
+ *         println("已自动选择: ${autoSelected.mediaId}")
+ *     }
+ *
+ *     // 用户在 UI 中手动指定某个资源
+ *     val userChosenMedia: Media = /* 由用户在界面中选取 */
+ *     mediaSelector.select(userChosenMedia)
+ *
+ *     // 最终获取当前选中的资源
+ *     println("当前选中的资源: ${mediaSelector.selected.value}")
+ * }
+ * ```
+ *
+ * @see Media
+ * @see MediaSelectorSettings
+ * @see MediaPreference
+ * @see me.him188.ani.datasources.api.source.MediaSource
+ * @see MediaSelectorFilterSortAlgorithm
+ */
+interface MediaSelector {
+    /**
+     * 搜索到的全部的列表, 经过了设置 [MediaSelectorSettings] 筛选.
+     *
+     * 返回 [MaybeExcludedMedia] 列表, 包含了被排除的原因.
+     * @see MediaSelectorFilterSortAlgorithm
+     */
+    val filteredCandidates: Flow<List<MaybeExcludedMedia>>
+
+    /**
+     * 搜索到的全部的列表, 经过了设置 [MediaSelectorSettings] 筛选.
+     * @see MediaSelectorFilterSortAlgorithm
+     */
+    val filteredCandidatesMedia: Flow<List<Media>>
+
+    /**
+     * 用户的偏好字幕组设置
+     */
+    val alliance: MediaPreferenceItem<String>
+
+    /**
+     * 用户的偏好分辨率设置
+     */
+    val resolution: MediaPreferenceItem<String>
+
+    /**
+     * 用户的偏好字幕语言设置
+     */
+    val subtitleLanguageId: MediaPreferenceItem<String>
+
+    /**
+     * 用户的偏好数据源 ID 设置
+     */
+    val mediaSourceId: MediaPreferenceItem<String>
+
+    /**
+     * [filteredCandidatesMedia] 经过 [alliance], [resolution], [subtitleLanguageId] 和 [mediaSourceId] 筛选后的列表.
+     */
+    val preferredCandidates: Flow<List<MaybeExcludedMedia>>
+
+    /**
+     * [filteredCandidatesMedia] 经过 [alliance], [resolution], [subtitleLanguageId] 和 [mediaSourceId] 筛选后的列表.
+     */
+    val preferredCandidatesMedia: Flow<List<Media>>
+
+    /**
+     * 目前选中的项目. 它不一定是 [preferredCandidatesMedia] 中的一个项目.
+     */
+    val selected: StateFlow<Media?>
+
+    /**
+     * 用于监听 [select] 等事件
+     * @see eventHandling
+     */
+    val events: MediaSelectorEvents
+
+    /** Build coherent decision inputs from the fetch session, independently of UI candidate caches. */
+    fun autoSelectSnapshots(sources: Flow<List<MediaSourceSelectionSnapshot>>): Flow<MediaAutoSelectSnapshot>
+
+    /** Commit only if selection has not changed since the automatic decision started. Does not save preferences. */
+    suspend fun selectAutomatically(candidate: Media, expectedSelection: Media?): Media?
+
+    /**
+     * 选择一个 [Media]. 该 [Media] 可以是位于 [preferredCandidatesMedia] 中的, 也可以不是.
+     * 将会更新 [selected] 并广播事件 [MediaSelectorEvents.onChangePreference] 和 [MediaSelectorEvents.onSelect].
+     *
+     * 该操作优先级高于任何其他的选择. 即会覆盖 [trySelectDefault] 和 [trySelectCached] 的结果.
+     *
+     * 重复 [select] 同一个 [Media] 时, 本函数立即返回 `false`, 不会做重复广播事件等.
+     *
+     * @return 当成功将 [selected] 更新为 [candidate] 时返回 `true`. 当 [selected] 已经是 [candidate] 时返回 `false`.
+     */
+    suspend fun select(candidate: Media): Boolean
+
+    /**
+     * 选择一个 [Media], 只对本次会话有效: 与 [select] 一样更新 [selected] 并广播 [MediaSelectorEvents.onSelect],
+     * 优先级同样高于任何其他的选择, 但不会更新偏好, 也不会广播 [MediaSelectorEvents.onChangePreference]
+     * 和 [MediaSelectorEvents.onPreferWebSource], 因此不影响之后的自动选择.
+     *
+     * 用于播放不来自任何数据源的资源, 例如用户拖入播放页的本地文件 ([DroppedFileMedia]).
+     *
+     * @return 当成功将 [selected] 更新为 [candidate] 时返回 `true`. 当 [selected] 已经是 [candidate] 时返回 `false`.
+     */
+    suspend fun selectTemporarily(candidate: Media): Boolean
+
+    /**
+     * 清除当前的选择, 不会更新配置
+     */
+    fun unselect()
+
+    /**
+     * 尝试使用目前的偏好设置, 自动选择一个. 当已经有用户选择或默认选择时返回 `null`.
+     *
+     * @return 成功选择且已经记录的 [Media]. 返回 `null` 时表示没有选择.
+     * @see MediaAutoSelector
+     */
+    suspend fun trySelectDefault(): Media?
+
+    /**
+     * 根据提供的 [candidateSources], 尝试选择一个 media.
+     * 
+     * 注意, 调用此方法时将从 [preferredCandidates] 和 [filteredCandidates] 当前的 snapshot 中选择,
+     * 如果在选的过程中这些 flow 有更新, 则不会影响此次选择. 所以这个函数会很快返回结果.
+     * 
+     * 如果希望始终从最新的数据中选择, 使用 [awaitSelectFromMediaSources].
+     *
+     * @param candidateSources 候选数据源, 只会从这些里选.
+     * @param overrideUserSelection 是否覆盖用户选择.
+     * 若为 `true`, 则会忽略用户目前的选择, 使用此函数的结果替换选择.
+     * 若为 `false`, 如果用户已经选择了一个 media, 则此函数不会做任何事情.
+     * @param blacklistMediaIds 黑名单, 这些 media 不会被选择. 如果遇到黑名单中的 media, 将会跳过.
+     * @param allowNonPreferred 是否允许选择不满足用户偏好设置的项目. 如果为 `false`, 将只会从 [preferredCandidatesMedia] 中选择.
+     * 如果为 `true`, 则放弃用户偏好, 只根据数据源顺序选择.
+     * @param candidateMediaFilter 额外的 media 级过滤. 只有返回 `true` 的 media 才会被选择.
+     * `null` 表示不额外过滤. 用于 channel 级 tier 等需要比数据源更细粒度控制的场景.
+     *
+     * @return 成功选择且已经记录的 [Media]. 返回 `null` 时表示没有选择.
+     */
+    suspend fun trySelectFromMediaSources(
+        candidateSources: List<String>,
+        overrideUserSelection: Boolean = false,
+        blacklistMediaIds: Set<String> = emptySet(),
+        allowNonPreferred: Boolean = false,
+        candidateMediaFilter: ((Media) -> Boolean)? = null,
+    ): Media?
+
+    /**
+     * 根据提供的 [candidateSources], 挂起到第一个满足的 media 出现为止.
+     *
+     * @see trySelectFromMediaSources
+     */
+    suspend fun awaitSelectFromMediaSources(
+        candidateSources: List<String>,
+        overrideUserSelection: Boolean = false,
+        blacklistMediaIds: Set<String> = emptySet(),
+        allowNonPreferred: Boolean = false,
+        candidateMediaFilter: ((Media) -> Boolean)? = null,
+    ): Media?
+
+    /**
+     * 尝试选择缓存 ([MediaSourceKind.LocalCache]) 作为默认选择, 如果没有缓存则不做任何事情
+     * @return 成功选择且已经记录的缓存, 若没有缓存或用户已经手动选择了一个则返回 `null`
+     * @see MediaAutoSelector
+     */
+    suspend fun trySelectCached(): Media?
+
+    /**
+     * 逐渐取消选择, 直到 [preferredCandidatesMedia] 有至少一个元素.
+     */
+    suspend fun removePreferencesUntilFirstCandidate()
+}
+
+
+/**
+ * 一个筛选项目
+ * @param T 例如字幕语言
+ */
+interface MediaPreferenceItem<T : Any> {
+    /**
+     * 目前搜索到的列表
+     */
+    val available: Flow<List<T>>
+
+    /**
+     * 用户在本次会话中的选择, 可能为空.
+     */
+    val userSelected: Flow<OptionalPreference<T>>
+
+    /**
+     * 默认的选择, 为空表示没有默认的选择.
+     * 这将会是用户在系统设置中配置的全局默认值.
+     */
+    val defaultSelected: Flow<T?>
+
+    /**
+     * [userSelected] 与 [defaultSelected] 合并考虑的选择. 不必是 [available] 里面的选项.
+     */
+    val finalSelected: Flow<T?> // 注意, autoEnableLastSelected 依赖 "不必是 [available] 里面的选项" 这个性质.
+
+    /**
+     * 用户选择
+     */
+    suspend fun prefer(value: T)
+
+    /**
+     * 删除已有的选择
+     */
+    suspend fun removePreference()
+}
+
+/**
+ * @see MediaSelector
+ */
+class DefaultMediaSelector(
+    mediaSelectorContextNotCached: Flow<MediaSelectorContext>,
+    mediaListNotCached: Flow<List<Media>>,
+    /**
+     * 数据库中的用户偏好. 仅当用户在本次会话中没有设置新的偏好时, 才会使用此偏好 (跟随 flow 更新). 不能为空 flow, 否则 select 会一直挂起.
+     */
+    savedUserPreference: Flow<MediaPreference>,
+    /**
+     * 若 [savedUserPreference] 未指定某个属性的偏好, 则使用此默认值. 不能为空 flow, 否则 select 会一直挂起.
+     */
+    private val savedDefaultPreference: Flow<MediaPreference>,
+    mediaSelectorSettings: Flow<MediaSelectorSettings>,
+    /**
+     * context for flow
+     */
+    private val flowCoroutineContext: CoroutineContext = Dispatchers.Default,
+    /**
+     * 是否将 [savedDefaultPreference] 和计算工作缓存. 这会导致有些许延迟. 在测试时需要关闭.
+     */
+    private val enableCaching: Boolean = true,
+    private val algorithm: MediaSelectorFilterSortAlgorithm = MediaSelectorFilterSortAlgorithm(),
+    /**
+     * [cached] 使用的 scope. 为 `null` 时保持原行为: 每个 [cached] 调用创建一个无人管理的 [CoroutineScope].
+     */
+    private val cachingScope: CoroutineScope? = null,
+) : MediaSelector {
+    private fun <T> Flow<T>.cached(): Flow<T> {
+        if (!enableCaching) return this
+        // TODO: 2025/1/5 We need to correctly handle lifecycle. Let DefaultMediaSelector's caller control it.
+        return this.shareIn(
+            cachingScope ?: CoroutineScope(flowCoroutineContext),
+            SharingStarted.WhileSubscribed(5_000),
+            replay = 1,
+        )
+    }
+
+    private val mediaSelectorSettings = mediaSelectorSettings.cached()
+    private val mediaSelectorContext = mediaSelectorContextNotCached.cached()
+
+    @OptIn(UnsafeOriginalMediaAccess::class)
+    override val filteredCandidates: Flow<List<MaybeExcludedMedia>> = combine(
+        mediaListNotCached.cached(), // cache 是必要的, 当 newPreferences 变更的时候不能重新加载 media list (网络)
+        savedDefaultPreference, // 只需要使用 default, 因为目前不能覆盖生肉设置
+        // 如果依赖 merged pref, 会产生循环依赖 (mediaList -> mediaPreferenceItem -> newPreferences -> mediaList)
+        this.mediaSelectorSettings,
+        this.mediaSelectorContext,
+    ) { list, pref, settings, context ->
+        algorithm.filterMediaList(list, pref, settings, context)
+            .let { algorithm.sortMediaList(it, settings, context) }
+    }.cached()
+
+    override val filteredCandidatesMedia: Flow<List<Media>> = filteredCandidates.map { list ->
+        list.mapNotNull { it.result }
+    }.flowOn(flowCoroutineContext)
+
+    private val savedUserPreferenceNotCached = savedUserPreference
+    private val savedUserPreference: Flow<MediaPreference> = savedUserPreference.cached()
+
+    override val alliance = mediaPreferenceItem(
+        "alliance",
+        getFromMediaList = { list ->
+            list.mapTo(HashSet(list.size)) { it.properties.alliance }
+                .sortedBy { it }
+        },
+        getFromPreference = { it.alliance },
+    )
+    override val resolution = mediaPreferenceItem(
+        "resolution",
+        getFromMediaList = { list ->
+            list.mapTo(HashSet(list.size)) { it.properties.resolution }
+                .sortedBy { it }
+        },
+        getFromPreference = { it.resolution },
+    )
+    override val subtitleLanguageId = mediaPreferenceItem(
+        "subtitleLanguage",
+        getFromMediaList = { list ->
+            list.flatMapTo(HashSet(list.size)) { it.properties.subtitleLanguageIds }
+                .sortedByDescending {
+                    when (it.uppercase()) {
+                        "8K", "4320P" -> 6
+                        "4K", "2160P" -> 5
+                        "2K", "1440P" -> 4
+                        "1080P" -> 3
+                        "720P" -> 2
+                        "480P" -> 1
+                        "360P" -> 0
+                        else -> -1
+                    }
+                }
+        },
+        getFromPreference = { it.subtitleLanguageId },
+    )
+    override val mediaSourceId = mediaPreferenceItem(
+        "mediaSource",
+        getFromMediaList = { list ->
+            list.mapTo(HashSet(list.size)) { it.properties.resolution }
+                .sortedBy { it }
+        },
+        getFromPreference = { it.mediaSourceId },
+    )
+
+    /**
+     * 当前会话中的生效偏好
+     */
+    private val newPreferences = combine(
+        savedDefaultPreference,
+        alliance.finalSelected,
+        resolution.finalSelected,
+        subtitleLanguageId.finalSelected,
+        mediaSourceId.finalSelected,
+    ) { default, alliance, resolution, subtitleLanguage, mediaSourceId ->
+        default.copy(
+            alliance = alliance,
+            resolution = resolution,
+            subtitleLanguageId = subtitleLanguage,
+            mediaSourceId = mediaSourceId,
+        )
+    }.flowOn(flowCoroutineContext) // must not cache
+
+    // collect 一定会计算
+    private val preferredCandidatesNotCached =
+        combine(this.filteredCandidates, newPreferences) { mediaList, mergedPreferences ->
+            algorithm.filterByPreference(mediaList, mergedPreferences)
+        }
+
+    override val preferredCandidates: Flow<List<MaybeExcludedMedia>> = preferredCandidatesNotCached.cached()
+    override val preferredCandidatesMedia: Flow<List<Media>> =
+        preferredCandidates.map { list -> list.mapNotNull { it.result } }
+
+    override val selected: MutableStateFlow<Media?> = MutableStateFlow(null)
+    override val events = MutableMediaSelectorEvents()
+
+    override fun autoSelectSnapshots(sources: Flow<List<MediaSourceSelectionSnapshot>>): Flow<MediaAutoSelectSnapshot> =
+        combine(sources, savedDefaultPreference, newPreferences, mediaSelectorSettings, mediaSelectorContext) {
+                sourceSnapshots, default, preference, settings, context ->
+            val media = sourceSnapshots.flatMap { it.results }.distinctBy { it.mediaId }
+            val candidates = algorithm.sortMediaList(
+                algorithm.filterMediaList(media, default, settings, context), settings, context,
+            ).filterIsInstance<MaybeExcludedMedia.Included>()
+            MediaAutoSelectSnapshot(
+                sourceSnapshots, candidates,
+                algorithm.filterByPreference(candidates, preference).filterIsInstance<MaybeExcludedMedia.Included>(),
+                preference, settings, context,
+            )
+        }
+
+    override suspend fun selectAutomatically(candidate: Media, expectedSelection: Media?): Media? {
+        if (selected.value != expectedSelection || candidate == expectedSelection) return null
+        val event = SelectEvent(candidate, subtitleLanguageId = null, previousMedia = expectedSelection)
+        events.onBeforeSelect.emit(event)
+        if (!selected.compareAndSet(expectedSelection, candidate)) return null
+        events.onSelect.emit(event)
+        return candidate
+    }
+
+    override suspend fun select(candidate: Media): Boolean {
+        return selectImpl(candidate, updatePreference = true)
+    }
+
+    override suspend fun selectTemporarily(candidate: Media): Boolean {
+        return selectImpl(candidate, updatePreference = false)
+    }
+
+    /**
+     * 内部媒体选择实现函数。
+     *
+     * 设置当前选中的 [Media]，并在必要时更新用户偏好设置及广播事件。
+     *
+     * 此函数会发出 [onBeforeSelect] 与 [onSelect] 两个事件，分别用于监听前置逻辑和最终结果。
+     * 若传入的 [candidate] 与当前选中的媒体相同，且 [force] 为 false，则不会进行任何操作。
+     *
+     * @param candidate 待选中的媒体项。
+     * @param updatePreference 是否根据此媒体更新用户偏好（如分辨率、联盟、字幕语言等）。
+     * @param force 是否强制切换媒体。若为 true，则即使媒体未变也会触发切换。
+     * @return 若成功完成切换则返回 true，否则为 false。
+     */
+    private suspend fun selectImpl(
+        candidate: Media,
+        updatePreference: Boolean,
+        force: Boolean = false
+    ): Boolean {
+        val previous = selected.value
+
+        // 若未启用强制切换，且目标与当前项相同，则跳过
+        if (!force && previous == candidate) return false
+
+        // 发出切换前事件
+        events.onBeforeSelect.emit(
+            SelectEvent(
+                media = candidate,
+                subtitleLanguageId = null,
+                previousMedia = previous,
+            ),
+        )
+
+        selected.value = candidate // MSF, will not trigger new emit
+
+        // 更新用户偏好
+        if (updatePreference) {
+            alliance.preferWithoutBroadcast(candidate.properties.alliance)
+            resolution.preferWithoutBroadcast(candidate.properties.resolution)
+            mediaSourceId.preferWithoutBroadcast(candidate.mediaSourceId)
+            candidate.properties.subtitleLanguageIds.singleOrNull()?.let {
+                subtitleLanguageId.preferWithoutBroadcast(it)
+            }
+
+            broadcastChangePreference()
+            if (candidate.kind == MediaSourceKind.WEB) {
+                broadcastWebSourcePreference(candidate.mediaSourceId)
+            }
+        }
+
+        // 发出选择完成事件
+        events.onSelect.emit(
+            SelectEvent(
+                media = candidate,
+                subtitleLanguageId = null,
+                previousMedia = previous,
+            ),
+        )
+
+        return true
+    }
+
+    override fun unselect() {
+        selected.value = null
+    }
+
+    private suspend fun selectDefault(candidate: Media): Media? = selectAutomatically(candidate, expectedSelection = null)
+
+    private suspend fun broadcastChangePreference(overrideLanguageId: String? = null) {
+        if (events.onChangePreference.subscriptionCount.value == 0) return // 没人监听, 就不用算新的 preference 了
+        val savedUserPreference = savedUserPreferenceNotCached.first()
+        val preference = newPreferences.first() // must access un-cached
+        events.onChangePreference.emit(
+            savedUserPreference.copy(
+                alliance = preference.alliance,
+                resolution = preference.resolution,
+                subtitleLanguageId = overrideLanguageId ?: preference.subtitleLanguageId,
+                mediaSourceId = preference.mediaSourceId,
+            ),
+        )
+    }
+
+    private suspend fun broadcastWebSourcePreference(mediaSourceId: String) {
+        events.onPreferWebSource.emit(
+            PreferWebSourceEvent(
+                mediaSelectorContext.first().subjectInfo?.subjectId ?: return,
+                mediaSourceId,
+            ),
+        )
+    }
+
+    /**
+     * 参照用户偏好和各种限制设置, 从 [candidates] 中选择出最合适的 media.
+     * 不会调用 [selectImpl] nor [selectDefault], 也就是说不会更新 [selected]
+     */
+    private suspend fun findUsingPreferenceFromCandidates(
+        candidates: List<MaybeExcludedMedia.Included>,
+        mergedPreference: MediaPreference,
+    ): Media? = MediaSelectionDecider.findByPreference(
+        candidates,
+        mergedPreference,
+        alliance.available.first(),
+        mediaSelectorContext.first { it.allFieldsLoaded() },
+        mediaSelectorSettings.first(),
+    )
+
+    override suspend fun trySelectDefault(): Media? {
+        if (selected.value != null) return null
+        val candidates = preferredCandidates.first()
+        if (candidates.none { it is MaybeExcludedMedia.Included }) return null
+        val mergedPreference = newPreferences.first()
+        return findUsingPreferenceFromCandidates(
+            candidates.filterIsInstance<MaybeExcludedMedia.Included>(),
+            mergedPreference,
+        )?.let {
+            selectDefault(it)
+        }
+    }
+
+    override suspend fun trySelectFromMediaSources(
+        candidateSources: List<String>,
+        overrideUserSelection: Boolean,
+        blacklistMediaIds: Set<String>,
+        allowNonPreferred: Boolean,
+        candidateMediaFilter: ((Media) -> Boolean)?
+    ): Media? {
+        if (candidateSources.isEmpty()) return null
+
+        fun bake(candidates: List<MaybeExcludedMedia.Included>): List<MaybeExcludedMedia.Included> {
+            return candidates.filter {
+                it.result.mediaSourceId in candidateSources && it.result.mediaId !in blacklistMediaIds
+                        && (candidateMediaFilter == null || candidateMediaFilter(it.result))
+            }
+                .sortedBy { candidateSources.indexOf(it.result.mediaSourceId) }
+        }
+
+        val selected = run {
+            val mergedPreference = newPreferences.first()
+
+            findUsingPreferenceFromCandidates(
+                bake(preferredCandidates.first().filterIsInstance<MaybeExcludedMedia.Included>()),
+                mergedPreference.copy(alliance = ANY_FILTER),
+            )?.let { return@run it } // 先考虑用户偏好
+
+            if (allowNonPreferred) {
+                // 如果用户偏好里面没有, 并且允许选择非偏好的, 才考虑全部列表
+                findUsingPreferenceFromCandidates(
+                    bake(filteredCandidates.first().filterIsInstance<MaybeExcludedMedia.Included>()),
+                    mergedPreference.copy(
+                        alliance = ANY_FILTER,
+                        resolution = ANY_FILTER,
+                        subtitleLanguageId = ANY_FILTER,
+                        mediaSourceId = ANY_FILTER,
+                    ),
+                )?.let { return@run it }
+            }
+            null
+        }
+        // 实际上 this.selected 已经更新了
+
+        return selected?.let {
+            if (overrideUserSelection) {
+                if (selectImpl(it, updatePreference = false)) {
+                    it
+                } else {
+                    null
+                }
+            } else {
+                selectDefault(it)
+            }
+        }
+    }
+
+    override suspend fun awaitSelectFromMediaSources(
+        candidateSources: List<String>,
+        overrideUserSelection: Boolean,
+        blacklistMediaIds: Set<String>,
+        allowNonPreferred: Boolean,
+        candidateMediaFilter: ((Media) -> Boolean)?
+    ): Media? {
+        if (candidateSources.isEmpty()) return null
+
+        fun bake(candidates: List<MaybeExcludedMedia.Included>): List<MaybeExcludedMedia.Included> {
+            return candidates.filter {
+                it.result.mediaSourceId in candidateSources && it.result.mediaId !in blacklistMediaIds
+                        && (candidateMediaFilter == null || candidateMediaFilter(it.result))
+            }
+                .sortedBy { candidateSources.indexOf(it.result.mediaSourceId) }
+        }
+
+        val selected = combine(preferredCandidates, filteredCandidates) { preferred, candidates ->
+            val preferredSelected = findUsingPreferenceFromCandidates(
+                bake(preferred.filterIsInstance<MaybeExcludedMedia.Included>()),
+                newPreferences.first().copy(alliance = ANY_FILTER),
+            )
+            if (preferredSelected != null) return@combine preferredSelected
+            if (!allowNonPreferred) return@combine null
+
+            val filteredSelected = findUsingPreferenceFromCandidates(
+                bake(candidates.filterIsInstance<MaybeExcludedMedia.Included>()),
+                newPreferences.first().copy(
+                    alliance = ANY_FILTER,
+                    resolution = ANY_FILTER,
+                    subtitleLanguageId = ANY_FILTER,
+                    mediaSourceId = ANY_FILTER,
+                ),
+            )
+            return@combine filteredSelected
+        }
+            .filterNotNull()
+            .first()
+
+        return if (overrideUserSelection) {
+            if (selectImpl(selected, updatePreference = false)) {
+                selected
+            } else {
+                null
+            }
+        } else {
+            selectDefault(selected)
+        }
+    }
+
+    @OptIn(UnsafeOriginalMediaAccess::class)
+    override suspend fun trySelectCached(): Media? {
+        if (selected.value != null) return null
+        // 不管这个 media 能不能播放, 只要缓存了就行. 所以我们直接使用 `MaybeExcludedMedia.original`
+
+        // 尽量选择满足用户偏好的缓存, 否则再随便挑一个缓存.
+        val cached = preferredCandidates.first().firstOrNull { it.original.isLocalCache() }
+            ?: filteredCandidates.first().firstOrNull { it.original.isLocalCache() } ?: return null
+        return selectDefault(cached.original)
+    }
+
+    override suspend fun removePreferencesUntilFirstCandidate() {
+        if (preferredCandidatesMedia.first().isNotEmpty()) return
+        alliance.removePreference()
+        if (preferredCandidatesNotCached.first().isNotEmpty()) return
+        resolution.removePreference()
+        if (preferredCandidatesNotCached.first().isNotEmpty()) return
+        subtitleLanguageId.removePreference()
+        if (preferredCandidatesNotCached.first().isNotEmpty()) return
+        mediaSourceId.removePreference()
+    }
+
+    interface MediaPreferenceItemImpl<T : Any> : MediaPreferenceItem<T> {
+        fun preferWithoutBroadcast(value: T)
+    }
+
+    private inline fun <reified T : Any> mediaPreferenceItem(
+        debugName: String,
+        crossinline getFromMediaList: (list: List<Media>) -> List<T>,
+        crossinline getFromPreference: (MediaPreference) -> T?,
+    ) = object : MediaPreferenceItemImpl<T> {
+        override val available: Flow<List<T>> = filteredCandidatesMedia.map { list ->
+            getFromMediaList(list)
+        }.flowOn(flowCoroutineContext).cached()
+
+        // 当前用户覆盖的选择. 一旦用户有覆盖, 就不要用默认去修改它了
+        private val overridePreference: MutableStateFlow<OptionalPreference<T>> =
+            MutableStateFlow(OptionalPreference.noPreference())
+
+        /**
+         * must not cache, see [removePreferencesUntilFirstCandidate]
+         */
+        override val userSelected: Flow<OptionalPreference<T>> =
+            combine(savedUserPreference, overridePreference) { preference, override ->
+                override.flatMapNoPreference {
+                    OptionalPreference.preferIfNotNull(getFromPreference(preference))
+                }
+            }.flowOn(flowCoroutineContext)
+
+        override val defaultSelected: Flow<T?> = savedDefaultPreference.map { getFromPreference(it) }
+            .flowOn(flowCoroutineContext).cached()
+
+        /**
+         * must not cache, see [removePreferencesUntilFirstCandidate]
+         */
+        override val finalSelected: Flow<T?> = combine(userSelected, defaultSelected) { user, default ->
+            user.orElse { default }
+        }.flowOn(flowCoroutineContext)
+
+        override suspend fun removePreference() {
+            withContext(flowCoroutineContext) {
+                overridePreference.value = OptionalPreference.preferNoValue()
+                broadcastChangePreference(null)
+            }
+        }
+
+        override fun preferWithoutBroadcast(value: T) {
+            overridePreference.value = OptionalPreference.prefer(value)
+        }
+
+        override suspend fun prefer(value: T) {
+            withContext(flowCoroutineContext) {
+                preferWithoutBroadcast(value)
+                broadcastChangePreference(null)
+            }
+        }
+
+        override fun toString(): String = "MediaPreferenceItem($debugName)"
+    }
+}
